@@ -143,7 +143,7 @@ The simplest idea: when the market is scared, step aside.
 
 The problem is that VIX is reactive, not predictive. By the time VIX spikes above 25, you've already taken the first leg of the drawdown. And VIX often stays elevated during the early stages of recovery, causing you to miss the bounce.
 
-The best VIX variant (VIX < 30) produced a $3.7M end value with a 0.73 Sharpe and -72.7% max drawdown. That's worse than buy-and-hold on every metric. The threshold barely filters anything -- VIX is below 30 about 94% of the time -- so you get almost all of the downside with slightly less upside.
+The best VIX variant (VIX < 30) produced a $3.7M end value with a 0.73 Sharpe and -72.7% max drawdown. You sacrifice two-thirds of the terminal wealth for a max drawdown that's only 4 percentage points better. The threshold barely filters anything -- VIX is below 30 about 94% of the time -- so you get almost all of the downside with slightly less upside.
 
 Tighter thresholds (VIX < 20, VIX < 15) aggressively reduce the time invested but destroy returns. You end up in cash during too many good days. **Verdict: blunt instrument. Not recommended.**
 
@@ -221,7 +221,7 @@ The risk/return scatter tells the story. DD25%/Cool40 sits in the sweet spot: it
 
 ![Risk Return Scatter](charts/04_risk_return.png)
 
-HFEA is a respectable second on Sharpe (0.87) thanks to its strong Sortino ratio, but its -70.6% max drawdown means it didn't solve the core problem. The rest sacrifice too much return (Dual Momentum, VIX filter) or don't reduce risk enough (VIX < 30).
+HFEA is a respectable second on Sharpe (0.87) thanks to its strong Sortino ratio, but its -70.6% max drawdown means it didn't solve the core problem. Dual Momentum and Composite sacrifice too much return for the risk reduction they provide. The VIX filter either destroys returns (tight thresholds) or barely reduces risk (VIX < 30).
 
 I want to be direct about something: these are in-sample results. The DD25%/Cool40 parameters were selected because they look good on this data. Out-of-sample, results will almost certainly be worse. I address this in the limitations section.
 
