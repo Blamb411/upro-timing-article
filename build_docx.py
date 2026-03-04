@@ -492,6 +492,72 @@ def run_dd_exit_sma_gate(upro_df, spy_df, threshold, cool_days, tbill_daily, sma
         values, name, dates=common, trades=trades, pct_invested=pct_inv)
 
 
+def run_dd_exit_bond(upro_df, bond_df, threshold, cool_days, bond_name="TLT"):
+    """DD exit with a bond ETF as cash vehicle during cooling periods.
+    Exit: sell UPRO at next open, buy bond ETF at same open.
+    Re-entry: sell bond at next open, buy UPRO at same open.
+    """
+    common = upro_df.index.intersection(bond_df.index)
+    upro_open = upro_df.loc[common, "Open"].values
+    upro_close = upro_df.loc[common, "Close"].values
+    bond_open = bond_df.loc[common, "Open"].values
+    bond_close = bond_df.loc[common, "Close"].values
+
+    upro_shares = INITIAL_CAPITAL / upro_close[0]
+    bond_shares = 0.0
+    portfolio = INITIAL_CAPITAL
+    in_upro = True
+    ath = upro_close[0]
+    cool_counter = 0
+    in_cool = False
+    exit_signal = False
+    enter_signal = False
+    values = [INITIAL_CAPITAL]
+    trades = 1
+    days_in_upro = 0
+
+    for i in range(1, len(upro_close)):
+        if exit_signal:
+            portfolio = upro_shares * upro_open[i]
+            upro_shares = 0.0
+            bond_shares = portfolio / bond_open[i]
+            in_upro = False
+            exit_signal = False
+            in_cool = True
+            cool_counter = 0
+        elif enter_signal:
+            portfolio = bond_shares * bond_open[i]
+            bond_shares = 0.0
+            upro_shares = portfolio / upro_open[i]
+            in_upro = True
+            enter_signal = False
+            ath = upro_open[i]
+
+        if in_upro:
+            val = upro_shares * upro_close[i]
+            values.append(val)
+            days_in_upro += 1
+            ath = max(ath, upro_close[i])
+            dd = upro_close[i] / ath - 1
+            if dd < -threshold:
+                exit_signal = True
+                trades += 1
+        else:
+            val = bond_shares * bond_close[i]
+            values.append(val)
+            if in_cool:
+                cool_counter += 1
+                if cool_counter >= cool_days or upro_close[i] >= ath:
+                    enter_signal = True
+                    in_cool = False
+                    trades += 1
+
+    pct_inv = days_in_upro / max(len(values) - 1, 1)
+    name = f"DD{int(threshold*100)}%/Cool{cool_days}+{bond_name}"
+    return common, np.array(values), compute_metrics(
+        values, name, dates=common, trades=trades, pct_invested=pct_inv)
+
+
 def run_composite(upro_df, spy_df, vix_series, min_signals, tbill_daily):
     """Composite: invest when >= min_signals of (SMA200, VIX<25, 63d momentum)."""
     common = upro_df.index.intersection(spy_df.index).intersection(vix_series.index)
@@ -901,6 +967,33 @@ def chart_sma_gate(base_dates, base_vals, sma_results, path):
     print(f"  Saved: {path}")
 
 
+def chart_bond_cash(bh_dates, bh_vals, tb_dates, tb_vals, bond_results, path):
+    """Chart 9: Bond cash alternatives — T-bill vs TLT vs TMF during cooling."""
+    fig, ax = plt.subplots(figsize=(10, 6))
+    ax.semilogy(bh_dates, bh_vals, label="UPRO B&H",
+                linewidth=2, color=COLORS["upro_bh"], alpha=0.5)
+    ax.semilogy(tb_dates, tb_vals, label="DD25/Cool40 (T-bill cash)",
+                linewidth=2, color=COLORS["dd_exit"])
+    bond_colors = {"TLT": "#2ca02c", "TMF": "#d62728"}
+    bond_styles = {"TLT": "-", "TMF": "--"}
+    for name in ["TLT", "TMF"]:
+        d, v, m = bond_results[name]
+        ax.semilogy(d, v, label=f"DD25/Cool40 ({name} cash, Sharpe {m['sharpe']:.2f})",
+                    linewidth=2, color=bond_colors[name], linestyle=bond_styles[name])
+    ax.set_title("DD25%/Cool40: Cash Vehicle Comparison ($100K, Log Scale)",
+                 fontweight="bold", fontsize=12)
+    ax.set_ylabel("Portfolio Value ($)")
+    ax.legend(loc="upper left", fontsize=9, framealpha=0.9)
+    ax.grid(True, alpha=0.3, which="both")
+    ax.xaxis.set_major_locator(mdates.YearLocator(2))
+    ax.xaxis.set_major_formatter(mdates.DateFormatter("%Y"))
+    ax.tick_params(axis="x", rotation=30)
+    plt.tight_layout()
+    plt.savefig(path, dpi=200, bbox_inches="tight")
+    plt.close()
+    print(f"  Saved: {path}")
+
+
 # ======================================================================
 # WORD DOCUMENT BUILDER
 # ======================================================================
@@ -1257,6 +1350,18 @@ def main():
               f"MaxDD={m['max_dd']:.1%}, %Inv={m['pct_invested']:.0%}")
 
     # ------------------------------------------------------------------
+    # 5b. DD25/Cool40 + bond cash alternatives (TLT, TMF)
+    # ------------------------------------------------------------------
+    print("  DD25/Cool40 + bond cash alternatives...")
+    bond_cash_results = {}
+    for bond_name, bond_df in [("TLT", tlt_df), ("TMF", tmf_df)]:
+        d, v, m = run_dd_exit_bond(upro_df, bond_df, 0.25, 40, bond_name)
+        bond_cash_results[bond_name] = (d, v, m)
+        all_results.append(m)
+        print(f"    {bond_name} cash: CAGR={m['cagr']:.1%}, Sharpe={m['sharpe']:.3f}, "
+              f"MaxDD={m['max_dd']:.1%}")
+
+    # ------------------------------------------------------------------
     # 6. Synthetic pre-2009 UPRO
     # ------------------------------------------------------------------
     print("\n  Synthetic UPRO...")
@@ -1298,6 +1403,7 @@ def main():
         "synthetic_upro": os.path.join(_chart_dir, "06_synthetic_upro.png"),
         "walk_forward": os.path.join(_chart_dir, "07_walk_forward.png"),
         "sma_gate": os.path.join(_chart_dir, "08_sma_gate.png"),
+        "bond_cash": os.path.join(_chart_dir, "09_bond_cash.png"),
     }
     # Keep old chart paths for document builder if files exist on disk
     for key, fname in [("margin_calls", "leverage_margin_calls_summary.png"),
@@ -1318,6 +1424,8 @@ def main():
     dd25_40_data = dd_results[(0.25, 40)]
     chart_sma_gate(dd25_40_data[0], dd25_40_data[1], sma_gate_results,
                    chart_paths["sma_gate"])
+    chart_bond_cash(bm_d, bm_v, dd25_40_data[0], dd25_40_data[1],
+                    bond_cash_results, chart_paths["bond_cash"])
 
     # ------------------------------------------------------------------
     # 9. Export CSV with expanded metrics
@@ -1333,6 +1441,8 @@ def main():
         {**wf_train, "name": f"WF Train DD{int(wf_params[0]*100)}/Cool{wf_params[1]}"},
         {**wf_test, "name": f"WF Test DD{int(wf_params[0]*100)}/Cool{wf_params[1]}"},
     ])
+    for bname, (_, _, bm) in bond_cash_results.items():
+        all_metrics.append({**bm, "name": f"DD25/Cool40+{bname} cash"})
     df_results = pd.DataFrame(all_metrics)
     df_results.to_csv(csv_path, index=False, float_format="%.6f")
     print(f"\nCSV saved: {csv_path}")

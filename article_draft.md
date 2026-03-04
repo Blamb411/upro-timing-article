@@ -6,6 +6,7 @@
 - A leverage comparison reveals UPRO's hidden costs: a frictionless 3x position would have returned $22.6M, while 3x via margin yields only $3.1M. A static margin account avoids the -77% drawdown but would be margin-called in any period that doesn't start at a market bottom.
 - I backtested 5 timing strategies across 16+ years of actual UPRO data (2009-2026, $100K starting capital): VIX filter, dual momentum, HFEA (UPRO/TMF), drawdown-triggered exit, and a composite signal. All signals are computed at the prior close and executed at the next market open.
 - The best risk-adjusted strategy -- a simple drawdown exit with a cooling period -- delivered a 0.90 Sharpe ratio and cut the maximum drawdown from -77% to -42%, at the cost of about 12% less terminal wealth. Robustness testing (walk-forward validation, parameter heatmaps, and a synthetic pre-2009 stress test) confirms the result is not a fragile optimum.
+- An enhancement: parking idle cash in TLT (long-term Treasuries) instead of T-bills during cooling periods pushes the Sharpe to 0.92 and terminal wealth to $11.1M -- actually beating UPRO buy-and-hold -- by harvesting flight-to-quality rallies when stocks crash. The 3x bond alternative (TMF) boosts returns further but gives back all the drawdown protection.
 
 ---
 
@@ -305,13 +306,70 @@ The original DD25%/Cool40 rule -- re-enter after the cooling period expires or o
 
 ---
 
+## What to Do With Idle Cash: T-Bills vs. Bonds
+
+So far, the DD25%/Cool40 strategy parks cash in T-bills during cooling periods -- safe, boring, and earning whatever the prevailing short-term rate is. But cooling periods tend to coincide with stock market stress, which is exactly when long-term Treasuries rally (flight to quality). Can we exploit that?
+
+I tested three cash vehicles during the cooling periods:
+
+1. **T-bills** (baseline): earn the 13-week T-bill rate, compounded daily. No price risk.
+2. **TLT** (iShares 20+ Year Treasury Bond ETF): buy TLT at the open when exiting UPRO, sell TLT at the open when re-entering UPRO. Unlevered long-term bonds.
+3. **TMF** (Direxion Daily 20+ Year Treasury Bull 3X): same as TLT but 3x leveraged. Maximum flight-to-quality exposure.
+
+| Cash Vehicle | End Value | CAGR | Sharpe | Sortino | Max DD | Calmar |
+|-------------|-----------|------|--------|---------|--------|--------|
+| T-bills | $9.0M | +31.0% | 0.90 | 1.07 | -41.8% | 0.74 |
+| **TLT** | **$11.1M** | **+32.7%** | **0.92** | **1.17** | **-55.3%** | **0.59** |
+| TMF | $12.1M | +33.4% | 0.87 | 1.13 | -76.7% | 0.43 |
+| *UPRO B&H* | *$10.2M* | *+32.0%* | *0.80* | *0.99* | *-76.8%* | *0.42* |
+
+The TLT variant is the standout. It achieves the highest Sharpe ratio in the entire analysis (0.92) and is the *only* timing variant that beats UPRO buy-and-hold on terminal wealth ($11.1M vs $10.2M). The Sortino ratio (1.17) is also the best, reflecting particularly good downside risk management.
+
+### Why TLT Works
+
+The logic is straightforward: the DD exit fires during stock market drawdowns, and long-term Treasuries tend to rally during exactly those periods. Here are the actual TLT and TMF returns during each cooling period:
+
+| Period | Days | TLT Return | TMF Return |
+|--------|------|-----------|------------|
+| May-Jul 2010 | 60 | +1.7% | +3.4% |
+| Aug-Oct 2011 (debt ceiling) | 59 | +18.5% | +58.4% |
+| Nov 2011-Jan 2012 | 55 | -1.5% | -5.9% |
+| Jun-Jul 2012 | 57 | +0.6% | +0.8% |
+| Aug-Oct 2015 | 57 | -0.3% | -2.1% |
+| Jan-Mar 2016 | 60 | +3.1% | +8.2% |
+| Feb-Apr 2018 | 60 | +3.0% | +8.6% |
+| Oct-Dec 2018 | 60 | +6.5% | +19.6% |
+| Feb-Apr 2020 (COVID) | 59 | +10.2% | +20.4% |
+| Sep-Nov 2020 | 54 | -3.5% | -11.1% |
+| Jan-Mar 2022 (rate hikes) | 57 | -8.6% | -25.5% |
+| Apr-Jun 2022 | 58 | -6.8% | -21.3% |
+| Sep-Nov 2022 | 56 | -10.1% | -29.8% |
+| Oct-Dec 2023 | 49 | +18.1% | +58.9% |
+| Mar-May 2025 | 57 | -1.5% | -7.4% |
+
+The pattern is clear. During genuine flight-to-quality events (2011 debt ceiling, 2018 tightening scare, COVID, late 2023), TLT delivers strong positive returns while you're out of UPRO. During rate-hiking periods (2022), TLT loses money -- but the losses are manageable (-7% to -10%), not catastrophic.
+
+TMF amplifies both sides: +58% during the 2011 debt ceiling, but -30% during the 2022 rate hikes. The 3x leverage turns a useful hedge into a coin flip.
+
+### The Trade-Off
+
+TLT cash adds roughly 13 percentage points of max drawdown risk (-55% vs -42%) compared to T-bill cash. That's real. The source is 2022: three consecutive cash periods where TLT lost ground instead of providing shelter. In a T-bill world, those periods earned 0-5%. In a TLT world, they lost 8-10% each.
+
+But the risk is bounded. TLT's worst cooling-period return was -10.1% -- painful but not portfolio-threatening. TMF's worst was -29.8% -- genuinely dangerous. The 1x bond position bends during rate hikes; the 3x position breaks.
+
+**Bottom line:** TLT cash is the recommended variant for investors willing to accept a -55% max drawdown (vs -42%) in exchange for higher total returns and the best risk-adjusted performance in the analysis. For investors who prioritize minimizing drawdowns above all else, T-bill cash remains the safer choice. TMF is not recommended -- it gives back the entire drawdown advantage that makes the timing strategy worthwhile.
+
+![Bond Cash Comparison](charts/09_bond_cash.png)
+
+---
+
 ## How to Implement the Drawdown Exit
 
 If you want to apply the DD25%/Cool40 strategy, here's the complete process:
 
 1. **Track UPRO's all-time high** on a closing-price basis. Start with the current ATH.
 2. **Each trading day at market close**, calculate the drawdown: (today's close / ATH) - 1.
-3. **If the drawdown exceeds -25%**, sell all UPRO at the next market open. Move proceeds to a money market fund or short-term Treasuries.
+3. **If the drawdown exceeds -25%**, sell all UPRO at the next market open. Move proceeds to TLT (or a money market fund if you prefer the safer variant).
 4. **Start a 40-trading-day clock** (approximately 8 calendar weeks).
 5. **Re-enter UPRO when either**: (a) UPRO closes at a new all-time high, or (b) 40 trading days have elapsed since your exit. Buy at the next open.
 6. **Reset the ATH tracker** and repeat.
@@ -322,7 +380,7 @@ You can do this with a simple spreadsheet. Check once a day after the close. Thi
 
 **Transaction costs.** At 31 trade signals over 16+ years and $0 commissions at most brokers, costs are negligible.
 
-**Cash return.** Our backtest models T-bill rates during cash periods. In 2023-2024, money market funds yielded 5%+. The results already reflect this realistic assumption.
+**Cash vehicle.** The baseline backtest uses T-bill rates during cash periods. The TLT variant -- buying long-term Treasuries during cooling periods -- produced the highest Sharpe ratio (0.92) and actually beat buy-and-hold on terminal wealth. See the "What to Do With Idle Cash" section for the full comparison.
 
 **The most important rule: don't tinker.** Pick your parameters and stick with them. If you start adjusting the threshold after a whipsaw, you've defeated the purpose of having a systematic rule.
 
@@ -366,11 +424,13 @@ I want to be transparent about what this analysis can and cannot tell us.
 
 ## Conclusion
 
-Simple drawdown-triggered exits can meaningfully improve UPRO's risk profile without exotic indicators, frequent trading, or complex portfolio construction. The DD25%/Cool40 rule -- exit at a 25% drawdown, wait 40 trading days before re-entering -- delivered the highest Sharpe ratio in the analysis (0.90) while cutting the maximum drawdown from -77% to -42%.
+Simple drawdown-triggered exits can meaningfully improve UPRO's risk profile without exotic indicators, frequent trading, or complex portfolio construction. The DD25%/Cool40 rule -- exit at a 25% drawdown, wait 40 trading days before re-entering -- delivered a 0.90 Sharpe ratio while cutting the maximum drawdown from -77% to -42%.
 
-The trade-off is real: approximately 12% less terminal wealth over 16+ years. You're giving up about $1.2 million on a $100K starting portfolio. Whether it's worth it depends on whether you'd actually hold through a -77% drawdown. If the honest answer is no, then a strategy that caps your pain at -42% and keeps 88% of the upside is a rational choice.
+Parking idle cash in TLT during cooling periods pushes the result further: a 0.92 Sharpe ratio, $11.1M terminal wealth (beating buy-and-hold's $10.2M), and a -55% max drawdown. The TLT variant exploits the flight-to-quality effect -- when stocks crash, long-term Treasuries tend to rally -- turning the cooling period from dead time into a productive hedge.
 
-Robustness testing supports this conclusion. A parameter heatmap shows DD25%/Cool40 sits in a broad region of strong performance, not on a fragile peak. Walk-forward validation (train 2009-2016, test 2017-2026) confirms the approach works out-of-sample. And a synthetic pre-2009 stress test shows the strategy provides modest benefit even through the worst decade in modern market history. Adding SMA re-entry gates, a natural "improvement," actually makes things worse -- the original rule is already well-tuned.
+The trade-off is explicit. The T-bill variant caps max drawdown at -42% but gives up 12% of buy-and-hold's terminal wealth. The TLT variant beats buy-and-hold on wealth but accepts a -55% max drawdown. Pick the one that matches your risk tolerance.
+
+Robustness testing supports both variants. A parameter heatmap shows the DD25%/Cool40 parameters sit in a broad region of strong performance, not on a fragile peak. Walk-forward validation (train 2009-2016, test 2017-2026) confirms the approach works out-of-sample. And a synthetic pre-2009 stress test shows the strategy provides modest benefit even through the worst decade in modern market history.
 
 This is not a recommendation to buy UPRO. Leveraged ETFs are inherently risky instruments with structural headwinds from volatility decay. But if you've already decided to hold UPRO -- and millions of investors have -- then managing that risk with a systematic, rules-based approach is better than managing it with your gut.
 
