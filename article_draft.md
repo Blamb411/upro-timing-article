@@ -422,6 +422,16 @@ I want to be transparent about what this analysis can and cannot tell us.
 
 ---
 
+## How Does This Compare to Options-Based Leverage?
+
+Not every investor can or wants to hold leveraged ETFs. Some IRA custodians restrict them, and many investors are uncomfortable with a product that resets leverage daily and is subject to volatility decay. An alternative approach to leveraged equity exposure is buying deep in-the-money (80-delta) SPY call options, which provide roughly 1.5-2x leverage through embedded leverage in the option premium. When combined with an SMA200 trend filter — buy only when SPY is above its 200-day moving average — the options approach avoids bear market exposure entirely by sitting in cash below the moving average.
+
+Over the same 2015-2026 period with actual market data, the 80-delta options-only strategy produced a +24.7% CAGR (0.85 Sharpe, -39.1% max drawdown) compared to UPRO DD25/Cool40's +25.2% CAGR (0.79 Sharpe, -41.8% max drawdown). The returns are nearly identical, and the options approach actually edges ahead on risk-adjusted metrics. But the operational difference is enormous: 1,233 option trades over 11 years versus ~15 round-trips for the drawdown exit. UPRO DD25/Cool40 requires checking one number (the drawdown percentage) once a day. The 80-delta options strategy requires monitoring positions, rolling expirations, managing entries and exits across dozens of concurrent positions, and dealing with the occasional illiquid option chain.
+
+If you *can* hold UPRO and have the discipline to follow the DD25/Cool40 rule mechanically, it's the simpler, better choice. The options-based approach is worth considering only if leveraged ETFs are unavailable in your account or if you have the infrastructure and temperament for active options management.
+
+---
+
 ## Conclusion
 
 Simple drawdown-triggered exits can meaningfully improve UPRO's risk profile without exotic indicators, frequent trading, or complex portfolio construction. The DD25%/Cool40 rule -- exit at a 25% drawdown, wait 40 trading days before re-entering -- delivered a 0.90 Sharpe ratio while cutting the maximum drawdown from -77% to -42%.
