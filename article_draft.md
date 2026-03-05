@@ -426,7 +426,41 @@ I want to be transparent about what this analysis can and cannot tell us.
 
 Not every investor can or wants to hold leveraged ETFs. Some IRA custodians restrict them, and many investors are uncomfortable with a product that resets leverage daily and is subject to volatility decay. An alternative approach to leveraged equity exposure is buying deep in-the-money (80-delta) SPY call options, which provide roughly 1.5-2x leverage through embedded leverage in the option premium. When combined with an SMA200 trend filter — buy only when SPY is above its 200-day moving average — the options approach avoids bear market exposure entirely by sitting in cash below the moving average.
 
-Over the same 2015-2026 period with actual market data, the 80-delta options-only strategy produced a +24.7% CAGR (0.85 Sharpe, -39.1% max drawdown) compared to UPRO DD25/Cool40's +25.2% CAGR (0.79 Sharpe, -41.8% max drawdown). The returns are nearly identical, and the options approach actually edges ahead on risk-adjusted metrics. But the operational difference is enormous: 1,233 option trades over 11 years versus ~15 round-trips for the drawdown exit. UPRO DD25/Cool40 requires checking one number (the drawdown percentage) once a day. The 80-delta options strategy requires monitoring positions, rolling expirations, managing entries and exits across dozens of concurrent positions, and dealing with the occasional illiquid option chain.
+Over the same 2015-2026 period with actual market data, the 80-delta options-only strategy produced a +24.7% CAGR (0.85 Sharpe, -39.1% max drawdown) compared to UPRO DD25/Cool40's +25.2% CAGR (0.79 Sharpe, -41.8% max drawdown). The returns are nearly identical, and the options approach actually edges ahead on risk-adjusted metrics. But the operational difference is enormous: 1,233 option trades over 11 years versus ~15 round-trips for the drawdown exit.
+
+### Stratifying Returns by Market Regime
+
+To understand *how* these strategies differ — not just in aggregate, but across different market environments — I bucketed all 201 months from 2009-2026 by SPY's monthly return and computed average returns for each strategy within each bucket. The regime-level summary:
+
+| Regime | Count | SPY Avg | UPRO B&H | UPRO DD25 | 80D Opts |
+|--------|-------|---------|----------|-----------|----------|
+| Bear (SPY < -2%) | 39 | -5.2% | -16.2% | -12.3% | -5.6% |
+| Flat (-2% to +2%) | 71 | +0.3% | +0.2% | +0.4% | +0.1% |
+| Bull (SPY >= +2%) | 91 | +4.5% | +13.1% | +10.5% | +5.2% |
+
+The full bucket-by-bucket breakdown reveals how each strategy's leverage ratio shifts across the return distribution:
+
+![Stratification Returns](charts/10_stratification_returns.png)
+
+![Leverage Ratios](charts/11_leverage_ratios.png)
+
+![Regime Summary](charts/12_regime_summary.png)
+
+### What the Data Reveals
+
+The stratification data exposes several non-obvious dynamics:
+
+**UPRO delivers ~3x but with asymmetry.** The average monthly leverage ratio is 3.14x across all buckets, confirming UPRO tracks its daily 3x mandate faithfully at the monthly level. But the ratio isn't constant. In small-loss months (SPY -1% to 0%), the effective leverage spikes to 4.6x because volatility drag amplifies small losses — daily 3x compounding systematically overshoots 3x of the monthly return when daily moves are choppy. In mild up-months (+0% to +1%), the ratio drops to 1.3x for the opposite reason.
+
+**DD25 compresses the tails, but with a mid-month exit trap.** In the worst months (SPY < -8%), DD25 loses only -13.0% vs UPRO B&H's -31.3% — the exit fired early and moved to cash before the worst of the drawdown. But in moderate-decline months (SPY -5% to -4%), DD25 actually performs *worse* than UPRO B&H (-16.5% vs -14.1%). This is the mid-month exit trap: the drawdown threshold triggers partway through the month, locking in the loss and moving to cash, then missing the partial recovery that brings SPY's monthly return back to only -5%. The monthly return captures "sold the dip + missed the bounce" in a single number. This doesn't hurt the long-term strategy — it's a one-month accounting artifact — but it explains why DD25's bear-month performance isn't monotonically better as losses deepen.
+
+**DD25 in severe crashes: early exit is the edge.** In the < -8% SPY bucket, DD25's leverage ratio is only 1.25x vs UPRO's 3.01x. Those months include events like March 2020 where the exit likely fired before the worst of the decline. In the -8% to -7% bucket, DD25's ratio jumps to 1.89x because those moderately bad months may not have pushed UPRO past the -25% threshold, so DD25 was fully exposed.
+
+**80-delta options have a natural floor from the SMA filter but cap gains via exits.** In the worst months, the options strategy loses only -2.5% (0.24x leverage ratio) because the SMA200 filter has already moved to cash during bear markets. In normal bull months (+2% to +5%), it delivers a consistent 1.5-1.7x leverage. But in extreme up-months (SPY > +7%), returns compress to less than 1x. The profit target (+50%) and max-hold (60-day) exits close positions before the full monthly move plays out, and sharp V-bottom recoveries often start below the SMA, meaning the portfolio wasn't fully deployed at the start of the rally.
+
+### The Simplicity Trade-Off
+
+UPRO DD25/Cool40 requires checking one number (the drawdown percentage) once a day. The 80-delta options strategy requires monitoring positions, rolling expirations, managing entries and exits across dozens of concurrent positions, and dealing with the occasional illiquid option chain.
 
 If you *can* hold UPRO and have the discipline to follow the DD25/Cool40 rule mechanically, it's the simpler, better choice. The options-based approach is worth considering only if leveraged ETFs are unavailable in your account or if you have the infrastructure and temperament for active options management.
 
