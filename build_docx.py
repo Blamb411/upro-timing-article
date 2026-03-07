@@ -102,23 +102,40 @@ def get_daily_tbill_rate(irx_series):
     return (1 + irx_series / 100) ** (1 / 252) - 1
 
 
-def compute_metrics(values, name, dates=None, trades=0, pct_invested=1.0):
-    """Compute expanded performance metrics."""
+def avg_rf_annual(tbill_daily, dates):
+    """Compute average annualized risk-free rate over a date range."""
+    if tbill_daily is None or dates is None or len(dates) == 0:
+        return 0.0
+    tb = tbill_daily.reindex(dates).dropna()
+    if len(tb) == 0:
+        return 0.0
+    return float(tb.mean()) * TRADING_DAYS_PER_YEAR
+
+
+def compute_metrics(values, name, dates=None, trades=0, pct_invested=1.0,
+                    rf_annual=0.0):
+    """Compute expanded performance metrics.
+    rf_annual: annualized risk-free rate (e.g. 0.02 for 2%) used for
+               Sharpe, Sortino, and Calmar excess-return calculations.
+    """
     vals = np.array(values, dtype=float)
     n_years = len(vals) / TRADING_DAYS_PER_YEAR
     cagr = (vals[-1] / vals[0]) ** (1.0 / n_years) - 1
     daily_rets = np.diff(vals) / vals[:-1]
-    sharpe = (np.mean(daily_rets) / np.std(daily_rets) * np.sqrt(TRADING_DAYS_PER_YEAR)
+    daily_rf = rf_annual / TRADING_DAYS_PER_YEAR
+    excess_rets = daily_rets - daily_rf
+    sharpe = (np.mean(excess_rets) / np.std(daily_rets) * np.sqrt(TRADING_DAYS_PER_YEAR)
               if np.std(daily_rets) > 0 else 0)
-    neg_rets = daily_rets[daily_rets < 0]
-    sortino = (np.mean(daily_rets) / np.std(neg_rets) * np.sqrt(TRADING_DAYS_PER_YEAR)
-               if len(neg_rets) > 0 and np.std(neg_rets) > 0 else 0)
+    neg_excess = excess_rets[excess_rets < 0]
+    sortino = (np.mean(excess_rets) / np.std(neg_excess) * np.sqrt(TRADING_DAYS_PER_YEAR)
+               if len(neg_excess) > 0 and np.std(neg_excess) > 0 else 0)
     cummax = np.maximum.accumulate(vals)
     drawdowns = vals / cummax - 1
     max_dd = drawdowns.min()
 
-    # Calmar ratio
-    calmar = cagr / abs(max_dd) if max_dd != 0 else 0
+    # Calmar ratio (excess CAGR / |MaxDD|)
+    excess_cagr = cagr - rf_annual
+    calmar = excess_cagr / abs(max_dd) if max_dd != 0 else 0
 
     # CAGR while invested
     cagr_while_invested = cagr / pct_invested if pct_invested > 0 else 0
@@ -168,23 +185,26 @@ def compute_metrics(values, name, dates=None, trades=0, pct_invested=1.0):
 #   Cash periods earn T-bill daily rate
 # ======================================================================
 
-def run_upro_bh(upro_df):
+def run_upro_bh(upro_df, tbill_daily=None):
     """UPRO Buy & Hold: buy at first close, hold."""
     closes = upro_df["Close"].values
     portfolio_values = (INITIAL_CAPITAL / closes[0]) * closes
     dates = upro_df.index
     return dates, portfolio_values, compute_metrics(
-        portfolio_values, "UPRO B&H", dates=dates, trades=1, pct_invested=1.0)
+        portfolio_values, "UPRO B&H", dates=dates, trades=1, pct_invested=1.0,
+        rf_annual=avg_rf_annual(tbill_daily, dates))
 
 
-def run_spy_bh(spy_close, start_date):
+def run_spy_bh(spy_close, start_date, tbill_daily=None):
     """SPY Buy & Hold (unchanged, close-only)."""
     spy = spy_close.loc[spy_close.index >= start_date]
     portfolio_values = (INITIAL_CAPITAL / spy.values[0]) * spy.values
-    return spy.index, portfolio_values, compute_metrics(portfolio_values, "SPY B&H (1x)")
+    return spy.index, portfolio_values, compute_metrics(
+        portfolio_values, "SPY B&H (1x)",
+        rf_annual=avg_rf_annual(tbill_daily, spy.index))
 
 
-def run_synthetic_3x(spy_close, start_date, rate=0.0):
+def run_synthetic_3x(spy_close, start_date, rate=0.0, tbill_daily=None):
     """Synthetic daily-rebalanced 3x (unchanged, close-only)."""
     spy = spy_close.loc[spy_close.index >= start_date]
     prices = spy.values
@@ -198,10 +218,12 @@ def run_synthetic_3x(spy_close, start_date, rate=0.0):
             pv[i:] = 0
             break
     label = "no cost" if rate == 0 else f"{rate:.0%} margin"
-    return spy.index, pv, compute_metrics(pv, f"Synthetic 3x ({label})")
+    return spy.index, pv, compute_metrics(
+        pv, f"Synthetic 3x ({label})",
+        rf_annual=avg_rf_annual(tbill_daily, spy.index))
 
 
-def run_static_3x(spy_close, start_date, rate=0.06, maint_margin=0.25):
+def run_static_3x(spy_close, start_date, rate=0.06, maint_margin=0.25, tbill_daily=None):
     """Static 3x: $100K equity + $200K borrowed, buy $300K SPY, hold."""
     spy = spy_close.loc[spy_close.index >= start_date]
     prices = spy.values
@@ -224,7 +246,9 @@ def run_static_3x(spy_close, start_date, rate=0.06, maint_margin=0.25):
             margin_called = True
         else:
             pv[i] = eq
-    return dates, pv, compute_metrics(pv, f"Static 3x ({rate:.0%} margin)")
+    return dates, pv, compute_metrics(
+        pv, f"Static 3x ({rate:.0%} margin)",
+        rf_annual=avg_rf_annual(tbill_daily, dates))
 
 
 def run_vix_filter(upro_df, vix_series, threshold, tbill_daily):
@@ -267,7 +291,8 @@ def run_vix_filter(upro_df, vix_series, threshold, tbill_daily):
 
     pct_inv = days_invested / max(len(values) - 1, 1)
     return common, np.array(values), compute_metrics(
-        values, f"VIX<{threshold}", dates=common, trades=trades, pct_invested=pct_inv)
+        values, f"VIX<{threshold}", dates=common, trades=trades, pct_invested=pct_inv,
+        rf_annual=avg_rf_annual(tbill_daily, common))
 
 
 def run_dual_momentum(upro_df, spy_df, tlt_df, tbill_daily, lookback=252):
@@ -322,10 +347,11 @@ def run_dual_momentum(upro_df, spy_df, tlt_df, tbill_daily, lookback=252):
 
     pct_inv = days_invested / max(len(values) - 1, 1)
     return common, np.array(values), compute_metrics(
-        values, "Dual Momentum", dates=common, trades=trades, pct_invested=pct_inv)
+        values, "Dual Momentum", dates=common, trades=trades, pct_invested=pct_inv,
+        rf_annual=avg_rf_annual(tbill_daily, common))
 
 
-def run_hfea(upro_df, tmf_df, upro_wt=0.55, rebal_days=63):
+def run_hfea(upro_df, tmf_df, upro_wt=0.55, rebal_days=63, tbill_daily=None):
     """HFEA 55/45: always invested, rebalance at open every rebal_days."""
     common = upro_df.index.intersection(tmf_df.index)
     upro_open = upro_df.loc[common, "Open"].values
@@ -352,7 +378,8 @@ def run_hfea(upro_df, tmf_df, upro_wt=0.55, rebal_days=63):
         values.append(port_val)
 
     return common, np.array(values), compute_metrics(
-        values, "HFEA 55/45", dates=common, trades=1 + rebal_count, pct_invested=1.0)
+        values, "HFEA 55/45", dates=common, trades=1 + rebal_count, pct_invested=1.0,
+        rf_annual=avg_rf_annual(tbill_daily, common))
 
 
 def run_dd_exit(upro_df, threshold, cool_days, tbill_daily):
@@ -418,7 +445,8 @@ def run_dd_exit(upro_df, threshold, cool_days, tbill_daily):
     pct_inv = days_invested / max(len(values) - 1, 1)
     name = f"DD{int(threshold * 100)}%/Cool{cool_days}"
     return dates, np.array(values), compute_metrics(
-        values, name, dates=dates, trades=trades, pct_invested=pct_inv)
+        values, name, dates=dates, trades=trades, pct_invested=pct_inv,
+        rf_annual=avg_rf_annual(tbill_daily, dates))
 
 
 def run_dd_exit_sma_gate(upro_df, spy_df, threshold, cool_days, tbill_daily, sma_length=200):
@@ -489,7 +517,8 @@ def run_dd_exit_sma_gate(upro_df, spy_df, threshold, cool_days, tbill_daily, sma
     pct_inv = days_invested / max(len(values) - 1, 1)
     name = f"DD{int(threshold * 100)}%/Cool{cool_days}+SMA{sma_length}"
     return common, np.array(values), compute_metrics(
-        values, name, dates=common, trades=trades, pct_invested=pct_inv)
+        values, name, dates=common, trades=trades, pct_invested=pct_inv,
+        rf_annual=avg_rf_annual(tbill_daily, common))
 
 
 def run_sma_filter(upro_df, spy_df, tbill_daily, sma_length=200, exit_buffer=0.0):
@@ -550,10 +579,12 @@ def run_sma_filter(upro_df, spy_df, tbill_daily, sma_length=200, exit_buffer=0.0
     buf_str = f"/{int(exit_buffer*100)}%buf" if exit_buffer > 0 else ""
     name = f"SMA{sma_length}{buf_str}"
     return common, np.array(values), compute_metrics(
-        values, name, dates=common, trades=trades, pct_invested=pct_inv)
+        values, name, dates=common, trades=trades, pct_invested=pct_inv,
+        rf_annual=avg_rf_annual(tbill_daily, common))
 
 
-def run_dd_exit_bond(upro_df, bond_df, threshold, cool_days, bond_name="TLT"):
+def run_dd_exit_bond(upro_df, bond_df, threshold, cool_days, bond_name="TLT",
+                     tbill_daily=None):
     """DD exit with a bond ETF as cash vehicle during cooling periods.
     Exit: sell UPRO at next open, buy bond ETF at same open.
     Re-entry: sell bond at next open, buy UPRO at same open.
@@ -616,7 +647,8 @@ def run_dd_exit_bond(upro_df, bond_df, threshold, cool_days, bond_name="TLT"):
     pct_inv = days_in_upro / max(len(values) - 1, 1)
     name = f"DD{int(threshold*100)}%/Cool{cool_days}+{bond_name}"
     return common, np.array(values), compute_metrics(
-        values, name, dates=common, trades=trades, pct_invested=pct_inv)
+        values, name, dates=common, trades=trades, pct_invested=pct_inv,
+        rf_annual=avg_rf_annual(tbill_daily, common))
 
 
 def run_composite(upro_df, spy_df, vix_series, min_signals, tbill_daily):
@@ -675,7 +707,8 @@ def run_composite(upro_df, spy_df, vix_series, min_signals, tbill_daily):
 
     pct_inv = days_invested / max(len(values) - 1, 1)
     return common, np.array(values), compute_metrics(
-        values, f"Composite {min_signals}of3", dates=common, trades=trades, pct_invested=pct_inv)
+        values, f"Composite {min_signals}of3", dates=common, trades=trades, pct_invested=pct_inv,
+        rf_annual=avg_rf_annual(tbill_daily, common))
 
 
 # ======================================================================
@@ -1375,13 +1408,14 @@ def main():
     print("\nRunning strategies...")
 
     # Benchmark
-    bm_d, bm_v, bm_m = run_upro_bh(upro_df)
+    bm_d, bm_v, bm_m = run_upro_bh(upro_df, tbill_daily)
 
     # Leverage comparison (unchanged, close-only)
-    spy_d, spy_v, spy_m = run_spy_bh(spy_close, upro_df.index[0])
-    s3_d, s3_v, s3_m = run_synthetic_3x(spy_close, upro_df.index[0], 0.0)
-    s3m_d, s3m_v, s3m_m = run_synthetic_3x(spy_close, upro_df.index[0], 0.06)
-    stat_d, stat_v, stat_m = run_static_3x(spy_close, upro_df.index[0], 0.06)
+    spy_d, spy_v, spy_m = run_spy_bh(spy_close, upro_df.index[0], tbill_daily)
+    s3_d, s3_v, s3_m = run_synthetic_3x(spy_close, upro_df.index[0], 0.0, tbill_daily)
+    s3m_d, s3m_v, s3m_m = run_synthetic_3x(spy_close, upro_df.index[0], 0.06, tbill_daily)
+    stat_d, stat_v, stat_m = run_static_3x(spy_close, upro_df.index[0], 0.06,
+                                            tbill_daily=tbill_daily)
 
     # Timing strategies
     all_results = []
@@ -1405,7 +1439,7 @@ def main():
 
     # HFEA
     print("  HFEA...")
-    hf_d, hf_v, hf_m = run_hfea(upro_df, tmf_df)
+    hf_d, hf_v, hf_m = run_hfea(upro_df, tmf_df, tbill_daily=tbill_daily)
     all_results.append(hf_m)
     best_per_strategy.append(("HFEA 55/45", hf_d, hf_v, hf_m))
 
@@ -1469,7 +1503,8 @@ def main():
     print("  DD25/Cool40 + bond cash alternatives...")
     bond_cash_results = {}
     for bond_name, bond_df in [("TLT", tlt_df), ("TMF", tmf_df)]:
-        d, v, m = run_dd_exit_bond(upro_df, bond_df, 0.25, 40, bond_name)
+        d, v, m = run_dd_exit_bond(upro_df, bond_df, 0.25, 40, bond_name,
+                                    tbill_daily=tbill_daily)
         bond_cash_results[bond_name] = (d, v, m)
         all_results.append(m)
         print(f"    {bond_name} cash: CAGR={m['cagr']:.1%}, Sharpe={m['sharpe']:.3f}, "
@@ -1486,13 +1521,13 @@ def main():
     # 2000-2009 subset
     syn_2000 = syn_upro.loc["2000-01-01":"2009-06-25"]
     ext_tbill_2000 = ext_tbill.loc["2000-01-01":"2009-06-25"]
-    syn_bh_d, syn_bh_v, syn_bh_m = run_upro_bh(syn_2000)
+    syn_bh_d, syn_bh_v, syn_bh_m = run_upro_bh(syn_2000, ext_tbill_2000)
     syn_dd_d, syn_dd_v, syn_dd_m = run_dd_exit(syn_2000, 0.25, 40, ext_tbill_2000)
     print(f"    Synthetic 2000-2009 B&H: CAGR={syn_bh_m['cagr']:.1%}, MaxDD={syn_bh_m['max_dd']:.1%}")
     print(f"    Synthetic 2000-2009 DD25/Cool40: CAGR={syn_dd_m['cagr']:.1%}, MaxDD={syn_dd_m['max_dd']:.1%}")
 
     # Full 1993-2026
-    syn_full_bh_d, syn_full_bh_v, syn_full_bh_m = run_upro_bh(syn_upro)
+    syn_full_bh_d, syn_full_bh_v, syn_full_bh_m = run_upro_bh(syn_upro, ext_tbill)
     syn_full_dd_d, syn_full_dd_v, syn_full_dd_m = run_dd_exit(syn_upro, 0.25, 40, ext_tbill)
     print(f"    Synthetic full B&H: CAGR={syn_full_bh_m['cagr']:.1%}")
     print(f"    Synthetic full DD25/Cool40: CAGR={syn_full_dd_m['cagr']:.1%}, "
