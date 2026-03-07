@@ -709,6 +709,256 @@ def run_composite(upro_df, spy_df, vix_series, min_signals, tbill_daily):
 
 
 # ======================================================================
+# EXIT SIGNAL DIAGNOSTIC
+# ======================================================================
+
+def exit_signal_diagnostic(upro_df, spy_df, vix_series, threshold=0.25,
+                            cool_days=40):
+    """Log SPY drawdown and VIX at each UPRO DD exit signal."""
+    common = upro_df.index.intersection(spy_df.index).intersection(vix_series.index)
+    upro_close = upro_df.loc[common, "Close"].values
+    spy_close = spy_df.loc[common, "Close"].values
+    vix = vix_series.loc[common].values
+    dates = common
+
+    ath_upro = upro_close[0]
+    ath_spy = spy_close[0]
+    invested = True
+    in_cool = False
+    cool_counter = 0
+    exit_signal = False
+    enter_signal = False
+    exits = []
+
+    for i in range(1, len(upro_close)):
+        if exit_signal:
+            invested = False
+            exit_signal = False
+            in_cool = True
+            cool_counter = 0
+        elif enter_signal:
+            invested = True
+            enter_signal = False
+            ath_upro = upro_close[i]
+
+        if invested:
+            ath_upro = max(ath_upro, upro_close[i])
+            ath_spy = max(ath_spy, spy_close[i])
+            dd_upro = upro_close[i] / ath_upro - 1
+            if dd_upro < -threshold:
+                dd_spy = spy_close[i] / ath_spy - 1
+                exits.append({
+                    "date": dates[i],
+                    "upro_close": upro_close[i],
+                    "upro_ath": ath_upro,
+                    "upro_dd": dd_upro,
+                    "spy_close": spy_close[i],
+                    "spy_ath": ath_spy,
+                    "spy_dd": dd_spy,
+                    "vix": vix[i],
+                })
+                exit_signal = True
+        else:
+            if in_cool:
+                cool_counter += 1
+                if cool_counter >= cool_days or upro_close[i] >= ath_upro:
+                    enter_signal = True
+                    in_cool = False
+
+    return pd.DataFrame(exits)
+
+
+# ======================================================================
+# BLOCK BOOTSTRAP ROBUSTNESS TEST
+# ======================================================================
+
+def run_dd_exit_on_returns(daily_rets, threshold, cool_days, daily_rf=0.0):
+    """Run DD exit strategy on a synthetic price path built from daily returns.
+    Returns (values_array, bh_values_array)."""
+    prices = np.zeros(len(daily_rets) + 1)
+    prices[0] = 100.0
+    for i, r in enumerate(daily_rets):
+        prices[i + 1] = prices[i] * (1 + r)
+        if prices[i + 1] <= 0:
+            prices[i + 1:] = 0.001
+            break
+
+    # Buy-and-hold
+    bh = (INITIAL_CAPITAL / prices[0]) * prices
+
+    # DD exit strategy (simplified: close-only, no open/close distinction)
+    shares = INITIAL_CAPITAL / prices[0]
+    portfolio = INITIAL_CAPITAL
+    invested = True
+    ath = prices[0]
+    cool_counter = 0
+    in_cool = False
+    exit_flag = False
+    enter_flag = False
+    values = [INITIAL_CAPITAL]
+
+    for i in range(1, len(prices)):
+        if exit_flag:
+            portfolio = shares * prices[i]
+            shares = 0.0
+            invested = False
+            exit_flag = False
+            in_cool = True
+            cool_counter = 0
+        elif enter_flag:
+            shares = portfolio / prices[i]
+            invested = True
+            enter_flag = False
+            ath = prices[i]
+
+        if invested:
+            val = shares * prices[i]
+            values.append(val)
+            ath = max(ath, prices[i])
+            dd = prices[i] / ath - 1
+            if dd < -threshold:
+                exit_flag = True
+        else:
+            portfolio *= (1 + daily_rf)
+            values.append(portfolio)
+            if in_cool:
+                cool_counter += 1
+                if cool_counter >= cool_days or prices[i] >= ath:
+                    enter_flag = True
+                    in_cool = False
+
+    return np.array(values), bh
+
+
+def run_block_bootstrap(upro_df, tbill_daily, threshold=0.25, cool_days=40,
+                         block_size=20, n_sim=1000, seed=42):
+    """Block bootstrap: shuffle 20-day blocks of UPRO returns, run strategy
+    on each simulated path. Returns DataFrame of per-sim metrics."""
+    closes = upro_df["Close"].values
+    daily_rets = np.diff(closes) / closes[:-1]
+    avg_rf = float(tbill_daily.reindex(upro_df.index).fillna(0).mean())
+    n = len(daily_rets)
+
+    # Build overlapping blocks
+    blocks = [daily_rets[i:i + block_size] for i in range(n - block_size + 1)]
+
+    rng = np.random.default_rng(seed)
+    results = []
+
+    for _ in range(n_sim):
+        # Sample blocks with replacement to fill the original length
+        path = []
+        while len(path) < n:
+            idx = rng.integers(0, len(blocks))
+            path.extend(blocks[idx].tolist())
+        path = path[:n]
+
+        strat_vals, bh_vals = run_dd_exit_on_returns(
+            path, threshold, cool_days, daily_rf=avg_rf)
+
+        n_years = len(strat_vals) / TRADING_DAYS_PER_YEAR
+        strat_cagr = (strat_vals[-1] / strat_vals[0]) ** (1.0 / n_years) - 1
+        bh_cagr = (bh_vals[-1] / bh_vals[0]) ** (1.0 / n_years) - 1
+
+        strat_rets = np.diff(strat_vals) / strat_vals[:-1]
+        bh_rets = np.diff(bh_vals) / bh_vals[:-1]
+
+        rf_annual = avg_rf * TRADING_DAYS_PER_YEAR
+        daily_rf_rate = rf_annual / TRADING_DAYS_PER_YEAR
+        strat_sharpe = ((np.mean(strat_rets - daily_rf_rate) / np.std(strat_rets)
+                         * np.sqrt(TRADING_DAYS_PER_YEAR))
+                        if np.std(strat_rets) > 0 else 0)
+        bh_sharpe = ((np.mean(bh_rets - daily_rf_rate) / np.std(bh_rets)
+                      * np.sqrt(TRADING_DAYS_PER_YEAR))
+                     if np.std(bh_rets) > 0 else 0)
+
+        strat_cm = np.maximum.accumulate(strat_vals)
+        strat_dd = (strat_vals / strat_cm - 1).min()
+        bh_cm = np.maximum.accumulate(bh_vals)
+        bh_dd = (bh_vals / bh_cm - 1).min()
+
+        results.append({
+            "strat_sharpe": strat_sharpe, "bh_sharpe": bh_sharpe,
+            "strat_cagr": strat_cagr, "bh_cagr": bh_cagr,
+            "strat_dd": strat_dd, "bh_dd": bh_dd,
+        })
+
+    return pd.DataFrame(results)
+
+
+# ======================================================================
+# VOLATILITY-NORMALIZED DRAWDOWN RULE
+# ======================================================================
+
+def run_vol_normalized_dd(upro_df, tbill_daily, k=6, vol_window=20,
+                           cool_days=40):
+    """Exit when drawdown exceeds k * rolling vol. Next-open execution."""
+    dates = upro_df.index
+    upro_open = upro_df["Open"].values
+    upro_close = upro_df["Close"].values
+    tbill = tbill_daily.reindex(dates).fillna(0).values
+
+    daily_rets = np.zeros(len(upro_close))
+    daily_rets[1:] = np.diff(upro_close) / upro_close[:-1]
+    rolling_vol = pd.Series(daily_rets).rolling(vol_window).std().values
+
+    shares = INITIAL_CAPITAL / upro_close[0]
+    portfolio = INITIAL_CAPITAL
+    invested = True
+    ath = upro_close[0]
+    cool_counter = 0
+    in_cool = False
+    exit_signal = False
+    enter_signal = False
+    values = [INITIAL_CAPITAL]
+    trades = 1
+    days_invested = 0
+
+    for i in range(1, len(upro_close)):
+        if exit_signal:
+            portfolio = shares * upro_open[i]
+            shares = 0.0
+            invested = False
+            exit_signal = False
+            in_cool = True
+            cool_counter = 0
+        elif enter_signal:
+            shares = portfolio / upro_open[i]
+            invested = True
+            enter_signal = False
+            ath = upro_open[i]
+
+        if invested:
+            val = shares * upro_close[i]
+            values.append(val)
+            days_invested += 1
+
+            ath = max(ath, upro_close[i])
+            dd = upro_close[i] / ath - 1
+
+            # Dynamic threshold: k * rolling volatility
+            if (not np.isnan(rolling_vol[i]) and rolling_vol[i] > 0
+                    and dd < -(k * rolling_vol[i])):
+                exit_signal = True
+                trades += 1
+        else:
+            portfolio *= (1 + tbill[i])
+            values.append(portfolio)
+            if in_cool:
+                cool_counter += 1
+                if cool_counter >= cool_days or upro_close[i] >= ath:
+                    enter_signal = True
+                    in_cool = False
+                    trades += 1
+
+    pct_inv = days_invested / max(len(values) - 1, 1)
+    name = f"VolNorm k={k}"
+    return dates, np.array(values), compute_metrics(
+        values, name, dates=dates, trades=trades, pct_invested=pct_inv,
+        rf_annual=avg_rf_annual(tbill_daily, dates))
+
+
+# ======================================================================
 # SYNTHETIC PRE-2009 UPRO
 # ======================================================================
 
@@ -1136,6 +1386,46 @@ def chart_bond_cash(bh_dates, bh_vals, tb_dates, tb_vals, bond_results, path):
     print(f"  Saved: {path}")
 
 
+def chart_bootstrap(bootstrap_df, path):
+    """Chart 14: Block bootstrap Sharpe distribution."""
+    fig, axes = plt.subplots(1, 2, figsize=(12, 5))
+
+    # Panel 1: Sharpe distribution
+    axes[0].hist(bootstrap_df["bh_sharpe"], bins=40, alpha=0.5, color=COLORS["upro_bh"],
+                 label="UPRO B&H", density=True)
+    axes[0].hist(bootstrap_df["strat_sharpe"], bins=40, alpha=0.5, color=COLORS["dd_exit"],
+                 label="DD25%/Cool40", density=True)
+    axes[0].axvline(bootstrap_df["bh_sharpe"].median(), color=COLORS["upro_bh"],
+                    linestyle="--", linewidth=2)
+    axes[0].axvline(bootstrap_df["strat_sharpe"].median(), color=COLORS["dd_exit"],
+                    linestyle="--", linewidth=2)
+    axes[0].set_xlabel("Sharpe Ratio")
+    axes[0].set_ylabel("Density")
+    axes[0].set_title("Block Bootstrap: Sharpe Distribution (1,000 sims)", fontweight="bold")
+    axes[0].legend(fontsize=9)
+    axes[0].grid(True, alpha=0.3)
+
+    # Panel 2: Max drawdown distribution
+    axes[1].hist(bootstrap_df["bh_dd"] * 100, bins=40, alpha=0.5, color=COLORS["upro_bh"],
+                 label="UPRO B&H", density=True)
+    axes[1].hist(bootstrap_df["strat_dd"] * 100, bins=40, alpha=0.5, color=COLORS["dd_exit"],
+                 label="DD25%/Cool40", density=True)
+    axes[1].axvline(bootstrap_df["bh_dd"].median() * 100, color=COLORS["upro_bh"],
+                    linestyle="--", linewidth=2)
+    axes[1].axvline(bootstrap_df["strat_dd"].median() * 100, color=COLORS["dd_exit"],
+                    linestyle="--", linewidth=2)
+    axes[1].set_xlabel("Max Drawdown (%)")
+    axes[1].set_ylabel("Density")
+    axes[1].set_title("Block Bootstrap: Max Drawdown Distribution", fontweight="bold")
+    axes[1].legend(fontsize=9)
+    axes[1].grid(True, alpha=0.3)
+
+    plt.tight_layout()
+    plt.savefig(path, dpi=200, bbox_inches="tight")
+    plt.close()
+    print(f"  Saved: {path}")
+
+
 # ======================================================================
 # WORD DOCUMENT BUILDER
 # ======================================================================
@@ -1554,6 +1844,42 @@ def main():
         upro_df, vix_series, spy_df, tlt_df, tmf_df, tbill_daily)
 
     # ------------------------------------------------------------------
+    # 7b. Exit signal diagnostic
+    # ------------------------------------------------------------------
+    print("\n  Exit signal diagnostic...")
+    exit_diag = exit_signal_diagnostic(upro_df, spy_df, vix_series)
+    diag_csv = os.path.join(_this_dir, "exit_diagnostics.csv")
+    exit_diag.to_csv(diag_csv, index=False, float_format="%.4f")
+    print(f"    {len(exit_diag)} exits logged")
+    print(f"    Median SPY DD at exit: {exit_diag['spy_dd'].median():.1%}")
+    print(f"    Median VIX at exit: {exit_diag['vix'].median():.1f}")
+    print(f"    SPY DD range: {exit_diag['spy_dd'].min():.1%} to {exit_diag['spy_dd'].max():.1%}")
+    print(f"    VIX range: {exit_diag['vix'].min():.1f} to {exit_diag['vix'].max():.1f}")
+
+    # ------------------------------------------------------------------
+    # 7c. Block bootstrap robustness test
+    # ------------------------------------------------------------------
+    print("\n  Block bootstrap (1,000 sims, 20-day blocks)...")
+    bootstrap_df = run_block_bootstrap(upro_df, tbill_daily)
+    pct_strat_wins = (bootstrap_df["strat_sharpe"] > bootstrap_df["bh_sharpe"]).mean()
+    median_sharpe_imp = (bootstrap_df["strat_sharpe"] - bootstrap_df["bh_sharpe"]).median()
+    median_dd_imp = (bootstrap_df["bh_dd"] - bootstrap_df["strat_dd"]).median()
+    print(f"    Strategy Sharpe > B&H in {pct_strat_wins:.0%} of simulations")
+    print(f"    Median Sharpe improvement: {median_sharpe_imp:+.3f}")
+    print(f"    Median max DD reduction: {median_dd_imp:.1%}")
+
+    # ------------------------------------------------------------------
+    # 7d. Volatility-normalized drawdown rule
+    # ------------------------------------------------------------------
+    print("\n  Volatility-normalized DD rule...")
+    vol_norm_results = {}
+    for k_val in [4, 5, 6, 7]:
+        d, v, m = run_vol_normalized_dd(upro_df, tbill_daily, k=k_val)
+        vol_norm_results[k_val] = (d, v, m)
+        print(f"    k={k_val}: CAGR={m['cagr']:.1%}, Sharpe={m['sharpe']:.3f}, "
+              f"MaxDD={m['max_dd']:.1%}, Trades={m['num_trades']}")
+
+    # ------------------------------------------------------------------
     # 8. Generate charts
     # ------------------------------------------------------------------
     print("\nGenerating charts...")
@@ -1568,6 +1894,7 @@ def main():
         "sma_gate": os.path.join(_chart_dir, "08_sma_gate.png"),
         "bond_cash": os.path.join(_chart_dir, "09_bond_cash.png"),
         "sma_filter": os.path.join(_chart_dir, "13_sma_filter.png"),
+        "bootstrap": os.path.join(_chart_dir, "14_bootstrap.png"),
     }
     # Keep old chart paths for document builder if files exist on disk
     for key, fname in [("margin_calls", "leverage_margin_calls_summary.png"),
@@ -1592,6 +1919,7 @@ def main():
                     bond_cash_results, chart_paths["bond_cash"])
     chart_sma_filter(bm_d, bm_v, dd25_40_data[0], dd25_40_data[1],
                      sma_filter_results, chart_paths["sma_filter"])
+    chart_bootstrap(bootstrap_df, chart_paths["bootstrap"])
 
     # ------------------------------------------------------------------
     # 9. Export CSV with expanded metrics

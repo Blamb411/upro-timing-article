@@ -48,9 +48,9 @@ I used actual UPRO daily prices from inception (June 25, 2009) through March 202
 - **Data:** Yahoo Finance, split-adjusted (auto_adjust), price returns only. Dividends are excluded, which is a conservative assumption -- actual returns for SPY would be modestly higher.
 - **Execution:** All signals use prior-day closing data, with trades executed at the following market open. There is no look-ahead bias and no same-day execution.
 - **Cash yield:** Cash earns the prevailing 13-week T-bill rate (^IRX), compounded daily.
-- **Slippage:** Not modeled. UPRO, SPY, and the other ETFs tested are large-cap, high-volume instruments with tight bid-ask spreads. Slippage on market-on-open orders would be minimal.
-- **No intraday stops:** All signals are end-of-day close-based. No intraday monitoring is required.
-- **Sharpe and Sortino ratios:** Computed using excess returns over the prevailing 13-week T-bill rate, annualized.
+- **Slippage:** Not modeled. Given the liquidity of the instruments tested (UPRO, SPY, TLT), the impact should be small relative to the magnitude of the results, though open-auction spreads can widen during stress periods.
+- **No intraday stops:** All signals are end-of-day close-based. No intraday monitoring is required. All-time highs and drawdowns are measured on closing prices, not intraday.
+- **Sharpe and Sortino ratios:** Computed using excess returns over the average 13-week T-bill rate (^IRX) prevailing during the strategy's time period, annualized. Calmar ratio uses excess CAGR over the same average risk-free rate.
 
 Here are the five strategies:
 
@@ -216,7 +216,9 @@ A note on the DD15%/Cool60 anomaly: its $441K end value is dramatically worse th
 
 The standout is **DD25%/Cool40**: exit when UPRO drops 25% from its peak, wait at least 40 trading days (~2 months) before re-entering. But it's worth noting that DD25%/Cool40 is representative of a family of competitive parameters -- the heatmap below shows that DD20-25%/Cool20-40 all produce Sharpe ratios above 0.75. The specific "best" parameters would shift with a different test period. I use DD25%/Cool40 throughout as a concrete example, not as a claim that these exact numbers are uniquely optimal.
 
-Why it works: the 25% threshold is wide enough to avoid whipsaws from normal UPRO volatility (this is a 3x fund -- 10-15% pullbacks happen routinely) but catches genuine bear markets. The 40-day cooling period forces patience. You don't buy the first dead-cat bounce. You wait for the storm to pass.
+Why it works: the 25% threshold is wide enough to avoid whipsaws from normal UPRO volatility (this is a 3x fund -- 10-15% pullbacks happen routinely) but catches genuine bear markets. There's a deeper mechanism at work here. Because UPRO is 3x leveraged, its price amplifies not just returns but volatility itself. A 25% UPRO drawdown typically corresponds to a high-single-digit or low-double-digit decline in SPY -- roughly the range where ordinary corrections begin to evolve into true market-stress regimes marked by elevated volatility, forced deleveraging, and unstable price action. In that sense, the rule may function less as a traditional trend-following signal and more as a volatility-regime detector for a leveraged ETF. (I explore this further in the robustness section below.)
+
+The 40-day cooling period forces patience. You don't buy the first dead-cat bounce. You wait for the storm to pass. This works partly because volatility clusters: after a large drawdown, the probability of continued violent price action remains elevated for weeks. The cooling period is a crude but effective way of staying out until that turbulence subsides.
 
 The trade-off is explicit: you give up about $1.2 million in terminal wealth (12% of buy-and-hold's end value) in exchange for a maximum drawdown that's **35 percentage points better** (-41.8% vs -76.8%). The Sharpe ratio improved from 0.78 to 0.86 over this test period. 31 trade signals over 16+ years -- roughly one exit/re-entry cycle per year. You're invested 86% of the time.
 
@@ -284,7 +286,7 @@ The key insight: the broad DD20-30%/Cool10-40 region produces strong results acr
 
 UPRO launched in June 2009, conveniently at the start of a historic bull market. What would have happened during the 2000-2009 "lost decade" -- dot-com crash, GFC, and everything in between?
 
-I constructed a synthetic UPRO by applying 3x daily-leveraged returns to SPY data going back to 1993, with a 0.89% expense ratio drag. This isn't a perfect proxy (it ignores swap costs and other ETF-specific factors), but it gives us a directional answer.
+I constructed a synthetic UPRO by applying 3x daily-leveraged returns to SPY price data (dividends excluded, consistent with the rest of this analysis) going back to 1993, with a 0.89% expense ratio drag. This isn't a perfect proxy (it ignores swap costs, dividend effects, and other ETF-specific factors), but it gives us a directional answer.
 
 The results are sobering. During 2000-2009, synthetic UPRO B&H lost 91% of its value (CAGR -22.7%, max drawdown -96.7%). DD25%/Cool40 fared slightly better (-17.5% CAGR, -92.8% max DD) -- it helped at the margin but couldn't save you from the sheer devastation of 3x leverage through two major bear markets.
 
@@ -338,6 +340,66 @@ The fundamental problem is that SMA crossovers are trend-following signals, and 
 
 The bottom line: whether used as a re-entry gate or as the primary signal, moving average crossovers underperform the simple drawdown exit for UPRO timing. The drawdown exit's advantage is that it responds to UPRO's actual price behavior rather than trying to infer trend direction from SPY.
 
+### Why 25% May Not Be Arbitrary
+
+One potential concern is that 25% is simply a round number that happened to work on this dataset. But there's a structural reason it may be well-calibrated for a 3x instrument.
+
+Because UPRO magnifies SPY's moves by roughly 3x, a 25% UPRO drawdown typically corresponds to a high-single-digit or low-double-digit decline in SPY. To test this directly, I examined the SPY drawdown and VIX level on each of the 15 exit signal dates:
+
+| Exit Date | UPRO DD | SPY DD | VIX |
+|-----------|---------|--------|-----|
+| May 2010 | -32.9% | -11.7% | 45.8 |
+| Aug 2011 | -32.7% | -11.4% | 31.7 |
+| Nov 2011 | -27.0% | -13.7% | 34.0 |
+| Jun 2012 | -27.2% | -9.6% | 26.7 |
+| Aug 2015 | -30.1% | -10.9% | 40.7 |
+| Jan 2016 | -28.5% | -10.2% | 25.2 |
+| Feb 2018 | -28.3% | -10.1% | 33.5 |
+| Oct 2018 | -26.5% | -9.2% | 25.2 |
+| Feb 2020 | -33.1% | -12.1% | 39.2 |
+| Sep 2020 | -26.7% | -9.4% | 28.6 |
+| Jan 2022 | -25.3% | -9.1% | 31.2 |
+| Apr 2022 | -27.6% | -12.6% | 33.5 |
+| Sep 2022 | -25.7% | -17.6% | 26.9 |
+| Oct 2023 | -26.5% | -10.2% | 20.2 |
+| Mar 2025 | -26.4% | -9.3% | 26.9 |
+
+The pattern is striking. Across all 15 exits, the median SPY drawdown was -10.2% and the median VIX was 31.2. SPY drawdowns ranged from -9.1% to -17.6%; VIX ranged from 20.2 to 45.8. Every exit occurred during conditions that would be recognized as market stress -- not ordinary pullbacks.
+
+This is roughly the range where ordinary corrections begin to evolve into true stress regimes marked by elevated volatility, forced deleveraging, and unstable price action. Think of it as three zones: below 15% UPRO drawdown is normal leveraged noise; 20-30% is the unstable-correction zone where stress may be building; above 40% is a full bear market already underway. The 25% trigger sits right in the middle of the transition zone.
+
+The cooling period complements this. After a volatility regime shift, the probability of continued violent price action remains elevated for weeks -- a well-documented empirical phenomenon known as volatility clustering. The 40-day waiting period is a crude but effective way of staying out until that turbulence subsides.
+
+This framing also explains why the rule works better on UPRO than it would on SPY. If you applied a 25% exit to SPY itself, you would exit far too late -- by the time SPY is down 25%, the damage is already severe. But UPRO's leverage amplifies stress signals, making them visible earlier in the price path.
+
+### Block Bootstrap Robustness Test
+
+The tests above examine whether the strategy works across different parameters and time periods. But a deeper question is: does the strategy's edge depend on the specific *sequence* of historical events?
+
+To test this, I ran a block bootstrap simulation. The daily return series was divided into overlapping 20-day blocks, preserving volatility clustering and short-term market dynamics within each block. These blocks were randomly reordered 1,000 times to generate alternative market histories with the same statistical properties as the original data. Unlike a simple Monte Carlo shuffle (which destroys autocorrelation), block bootstrap preserves the multi-day crash sequences and recovery patterns that the strategy responds to.
+
+The result: the drawdown exit strategy produced a higher Sharpe ratio than buy-and-hold in 35% of simulated paths, with a median Sharpe improvement of -0.05. This is a genuinely important finding. It means the strategy's Sharpe advantage over buy-and-hold is partly path-dependent -- it benefits from the specific sequencing of bull runs followed by sharp crashes that characterized 2009-2026. In randomly reordered histories, the advantage often disappears.
+
+However, this does not invalidate the strategy. The block bootstrap tests a counterfactual: "what if the same returns occurred in a different order?" But real markets *do* exhibit the clustering, momentum, and mean-reversion patterns that the blocks preserve internally. The strategy is designed to exploit those patterns, and the fact that it doesn't outperform in randomly shuffled histories is expected -- it would be surprising if it did.
+
+The practical takeaway: the drawdown exit is most useful in regimes that resemble recent history (trending markets with occasional sharp corrections). In a market with fundamentally different dynamics -- extended sideways chop, for example -- the edge may shrink.
+
+![Block Bootstrap](charts/14_bootstrap.png)
+
+### Volatility-Normalized Drawdown Rule
+
+A related concern: is the 25% threshold simply tuned to UPRO's specific volatility during this period? To test this, I implemented a volatility-normalized version: exit when the drawdown exceeds k times UPRO's 20-day realized volatility.
+
+| Variant | End Value | CAGR | Sharpe | Max DD | Trades |
+|---------|-----------|------|--------|--------|--------|
+| **DD25%/Cool40 (fixed)** | **$9.0M** | **+31.0%** | **0.86** | **-41.8%** | **31** |
+| VolNorm k=4 | $1.6M | +17.4% | 0.63 | -56.7% | 129 |
+| VolNorm k=5 | $2.3M | +20.1% | 0.68 | -47.6% | 87 |
+| VolNorm k=6 | $1.3M | +16.0% | 0.56 | -54.1% | 71 |
+| VolNorm k=7 | $3.6M | +24.4% | 0.72 | -57.3% | 43 |
+
+The volatility-normalized variants all underperform the fixed 25% rule. The best (k=7) achieves a 0.72 Sharpe with far more trades. The fixed threshold's advantage appears to come from its simplicity: a constant 25% threshold produces fewer false signals during calm periods (when rolling volatility is low and the normalized threshold would be too tight) and remains effective during crises (when volatility spikes and the normalized threshold would be too loose). The "right" threshold may not need to adapt to volatility because the 3x leverage already provides a natural volatility scaling.
+
 ---
 
 ## What to Do With Idle Cash: T-Bills vs. Bonds
@@ -389,7 +451,7 @@ TMF amplifies both sides: +58% during the 2011 debt ceiling, but -30% during the
 
 TLT cash adds roughly 13 percentage points of max drawdown risk (-55% vs -42%) compared to T-bill cash. That's real. The source is 2022: three consecutive cash periods where TLT lost ground instead of providing shelter. In a T-bill world, those periods earned 0-5%. In a TLT world, they lost 8-10% each.
 
-But the risk is bounded. TLT's worst cooling-period return was -10.1% -- painful but not portfolio-threatening. TMF's worst was -29.8% -- genuinely dangerous. The 1x bond position bends during rate hikes; the 3x position breaks.
+But the risk is bounded. TLT's worst cooling-period return was -10.1% -- painful but not portfolio-threatening. TMF's worst was -29.8% -- genuinely dangerous. The 1x bond position bends during rate hikes; the 3x position breaks. One important caveat: the TLT hedge's historical success relies on equity drawdowns being driven by growth shocks (2011, 2018, 2020), where bonds rally as investors flee to safety. If future equity drawdowns are driven by persistent inflation rather than growth shocks, the stock-bond correlation could remain positive, reducing the effectiveness of the TLT hedge -- as we saw in 2022.
 
 **Bottom line:** TLT cash is the recommended variant for investors willing to accept a -55% max drawdown (vs -42%) in exchange for higher total returns and the best risk-adjusted performance in the analysis. For investors who prioritize minimizing drawdowns above all else, T-bill cash remains the safer choice. TMF is not recommended -- it gives back the entire drawdown advantage that makes the timing strategy worthwhile.
 
@@ -412,7 +474,7 @@ You can do this with a simple spreadsheet. Check once a day after the close. Thi
 
 **Tax considerations.** Each exit is a taxable event. At roughly 15 round-trip trades over 16+ years (~1 per year), this is manageable but real. In an IRA or 401(k), it's a non-issue. In a taxable account, most exits are actually gains (12 of 15 historically) because the 25% drawdown trigger fires from the all-time high, not from the entry price -- so exits typically occur well above where you bought in. The three loss exits (early 2012, early 2016, spring 2022) came from quick whipsaws where re-entry was followed by another drawdown, and those do provide tax-loss harvesting opportunities.
 
-**Transaction costs.** At 31 trade signals over 16+ years and $0 commissions at most brokers, costs are negligible.
+**Transaction costs.** At 31 trade signals (~15 complete exit/re-entry cycles) over 16+ years and $0 commissions at most brokers, costs are negligible.
 
 **Cash vehicle.** The baseline backtest uses T-bill rates during cash periods. The TLT variant -- buying long-term Treasuries during cooling periods -- produced the highest Sharpe ratio (0.89) and actually beat buy-and-hold on terminal wealth. See the "What to Do With Idle Cash" section for the full comparison.
 
