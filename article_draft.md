@@ -4,7 +4,7 @@
 
 - The S&P 500 has compounded at roughly 10% per year (with dividends) since 1950, turning $10,000 into over $4 million. Leveraged ETFs like SSO (2x) and UPRO (3x) amplify those returns -- UPRO has turned $100K into ~$9.6M since 2009 -- but with devastating drawdowns that most investors cannot survive.
 - I backtested 5 timing strategies across 16+ years of actual UPRO data (2009-2026, $100K starting capital): VIX filter, dual momentum, HFEA (UPRO/TMF), drawdown-triggered exit, and a composite signal. All signals are computed at the prior close and executed at the next market open.
-- The best risk-adjusted strategy -- a simple drawdown exit with a cooling period -- delivered a 0.86 Sharpe ratio (vs 0.78 for UPRO buy-and-hold and 0.85 for plain SPY) and cut the maximum drawdown from -77% to -42%, at the cost of about 12% less terminal wealth. Robustness testing (walk-forward validation, parameter heatmaps, and a synthetic pre-2009 stress test) suggests the result is not a fragile optimum.
+- The best risk-adjusted strategy -- a simple drawdown exit with a cooling period -- delivered a 0.86 Sharpe ratio (vs 0.78 for UPRO buy-and-hold and 0.85 for plain SPY) and cut the maximum drawdown from -77% to -42%, at the cost of about 12% less terminal wealth. Walk-forward validation, parameter heatmaps, and a synthetic pre-2009 stress test suggest the parameters are not a fragile optimum, but block-bootstrap analysis shows the Sharpe advantage depends materially on the sequencing of returns -- making this a useful practical overlay for recent-style regimes, not a universal improvement.
 - An enhancement: parking idle cash in TLT (long-term Treasuries) instead of T-bills during cooling periods pushes the Sharpe to 0.89 and terminal wealth to $11.1M -- actually beating UPRO buy-and-hold -- by harvesting flight-to-quality rallies when stocks crash.
 
 ---
@@ -261,7 +261,7 @@ The DD25%/Cool40 result is impressive, but skepticism is warranted. These parame
 
 If DD25%/Cool40 sits on a narrow peak -- where nearby parameters produce much worse results -- that's a red flag for overfitting. To check, I computed the Sharpe ratio for a 5x6 grid of drawdown thresholds (10%-30%) and cooling periods (10-60 days).
 
-The result: DD25%/Cool40's 0.86 Sharpe sits at the peak of a broad green plateau. Adjacent cells DD20-25%/Cool30-40 all produce Sharpe ratios above 0.75. You can shift the threshold by 5 percentage points or the cooling period by 10 days in either direction and still get strong risk-adjusted performance. This is not a fragile optimum -- it's a robust region.
+The result: DD25%/Cool40's 0.86 Sharpe sits at the peak of a broad green plateau. Adjacent cells DD20-25%/Cool30-40 all produce Sharpe ratios above 0.75. You can shift the threshold by 5 percentage points or the cooling period by 10 days in either direction and still get strong risk-adjusted performance. This is not a fragile optimum -- it's a broad plateau of strong performance within this test period.
 
 ![DD Heatmap](charts/05_dd_heatmap.png)
 
@@ -378,17 +378,17 @@ The tests above examine whether the strategy works across different parameters a
 
 To test this, I ran a block bootstrap simulation. The daily return series was divided into overlapping 20-day blocks, preserving volatility clustering and short-term market dynamics within each block. These blocks were randomly reordered 1,000 times to generate alternative market histories with the same statistical properties as the original data. Unlike a simple Monte Carlo shuffle (which destroys autocorrelation), block bootstrap preserves the multi-day crash sequences and recovery patterns that the strategy responds to.
 
-The result: the drawdown exit strategy produced a higher Sharpe ratio than buy-and-hold in 35% of simulated paths, with a median Sharpe improvement of -0.05. This is a genuinely important finding. It means the strategy's Sharpe advantage over buy-and-hold is partly path-dependent -- it benefits from the specific sequencing of bull runs followed by sharp crashes that characterized 2009-2026. In randomly reordered histories, the advantage often disappears.
+The result: the drawdown exit strategy produced a higher Sharpe ratio than buy-and-hold in only 35% of simulated paths, with a median Sharpe improvement of -0.05. This is the most important finding in the entire analysis. It means the strategy's Sharpe advantage over buy-and-hold is not a general property of the return distribution -- it is regime-conditional, dependent on the specific sequencing of bull runs followed by sharp crashes that characterized 2009-2026. In randomly reordered histories, the advantage usually disappears.
 
-However, this does not invalidate the strategy. The block bootstrap tests a counterfactual: "what if the same returns occurred in a different order?" But real markets *do* exhibit the clustering, momentum, and mean-reversion patterns that the blocks preserve internally. The strategy is designed to exploit those patterns, and the fact that it doesn't outperform in randomly shuffled histories is expected -- it would be surprising if it did.
+This is an approximate regime test, not a precise replication of the production backtest -- the bootstrap uses a simplified close-only model and average risk-free carry rather than date-specific rates. But the directional conclusion is clear: the Sharpe edge is materially path-dependent.
 
-The practical takeaway: the drawdown exit is most useful in regimes that resemble recent history (trending markets with occasional sharp corrections). In a market with fundamentally different dynamics -- extended sideways chop, for example -- the edge may shrink.
+That does not mean the strategy is useless. Real markets *do* exhibit the volatility clustering, momentum, and mean-reversion patterns that the drawdown rule responds to. The exit diagnostic table above confirms that the 25% trigger identifies genuine stress episodes in actual market history. But the honest conclusion is that the strategy is a useful practical overlay for regimes resembling recent history -- trending markets with occasional sharp corrections -- not evidence of a regime-invariant alpha source. In a market with fundamentally different dynamics (extended sideways chop, a multi-year grinding bear), the edge may shrink or disappear entirely.
 
 ![Block Bootstrap](charts/14_bootstrap.png)
 
 ### Volatility-Normalized Drawdown Rule
 
-A related concern: is the 25% threshold simply tuned to UPRO's specific volatility during this period? To test this, I implemented a volatility-normalized version: exit when the drawdown exceeds k times UPRO's 20-day realized volatility.
+A natural question: if the 25% threshold works because it detects volatility regimes, shouldn't a volatility-normalized version work even better? To test this, I implemented a generalized version: exit when the drawdown exceeds k times UPRO's 20-day realized volatility.
 
 | Variant | End Value | CAGR | Sharpe | Max DD | Trades |
 |---------|-----------|------|--------|--------|--------|
@@ -398,7 +398,7 @@ A related concern: is the 25% threshold simply tuned to UPRO's specific volatili
 | VolNorm k=6 | $1.3M | +16.0% | 0.56 | -54.1% | 71 |
 | VolNorm k=7 | $3.6M | +24.4% | 0.72 | -57.3% | 43 |
 
-The volatility-normalized variants all underperform the fixed 25% rule. The best (k=7) achieves a 0.72 Sharpe with far more trades. The fixed threshold's advantage appears to come from its simplicity: a constant 25% threshold produces fewer false signals during calm periods (when rolling volatility is low and the normalized threshold would be too tight) and remains effective during crises (when volatility spikes and the normalized threshold would be too loose). The "right" threshold may not need to adapt to volatility because the 3x leverage already provides a natural volatility scaling.
+The volatility-normalized variants all underperform the fixed 25% rule. The best (k=7) achieves a 0.72 Sharpe with far more trades. This is a failed generalization test: the theoretically "smarter" adaptive threshold does not improve on the simple fixed rule over this period. The likely explanation is practical rather than deep -- a constant threshold produces fewer false signals during calm periods (when rolling volatility is low and the normalized threshold would be too tight) and remains effective during crises (when volatility spikes and the normalized threshold would be too loose). The result increases confidence that 25% is a practically useful threshold for UPRO, but it does not demonstrate that the number has any structural optimality beyond being well-matched to UPRO's realized volatility during 2009-2026.
 
 ---
 
@@ -526,7 +526,7 @@ Parking idle cash in TLT during cooling periods pushes the result further: a 0.8
 
 The trade-off is explicit. The T-bill variant caps max drawdown at -42% but gives up 12% of buy-and-hold's terminal wealth. The TLT variant beats buy-and-hold on wealth but accepts a -55% max drawdown. Pick the one that matches your risk tolerance.
 
-Robustness testing is encouraging for both variants. A parameter heatmap shows the DD25%/Cool40 parameters sit in a broad region of strong performance, not on a fragile peak. Walk-forward validation (train 2009-2016, test 2017-2026) suggests the approach works out-of-sample. And a synthetic pre-2009 stress test shows the strategy provided modest benefit even through the worst decade in modern market history. That said, these tests still draw from a limited set of market regimes -- a prolonged sideways or inflationary bear market would be the real test.
+Robustness testing paints a mixed but honest picture. On the encouraging side: the DD25%/Cool40 parameters sit in a broad plateau of strong performance (not a fragile peak), walk-forward validation suggests the approach works out-of-sample, and exit diagnostics confirm the 25% trigger identifies genuine SPY stress episodes. On the cautionary side: block-bootstrap analysis shows the strategy beats buy-and-hold on Sharpe in only 35% of randomly reordered return histories, meaning the Sharpe advantage is regime-conditional -- it depends on the specific pattern of bull runs followed by sharp corrections that characterized 2009-2026. The strategy is a useful practical overlay for regimes resembling recent history, not evidence of a regime-invariant alpha source.
 
 This is not a recommendation to buy UPRO. Leveraged ETFs are inherently risky instruments with structural headwinds from volatility decay. But if you've already decided to hold UPRO -- and millions of investors have -- then managing that risk with a systematic, rules-based approach is better than managing it with your gut.
 

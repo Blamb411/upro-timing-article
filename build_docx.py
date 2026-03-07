@@ -7,7 +7,6 @@ v2: Next-open execution, T-bill cash yield, synthetic pre-2009 UPRO,
 """
 
 import os
-import sys
 import re
 import numpy as np
 import pandas as pd
@@ -22,10 +21,6 @@ from docx.shared import Inches, Pt, RGBColor
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.enum.table import WD_TABLE_ALIGNMENT
 from docx.oxml.ns import qn
-
-# Add analysis script directory to path
-_analysis_dir = r"C:\Users\Admin\Trading\repos\spy-80-delta\Strategies\80-Delta Call Strategy"
-sys.path.insert(0, _analysis_dir)
 
 _this_dir = os.path.dirname(os.path.abspath(__file__))
 _chart_dir = os.path.join(_this_dir, "charts")
