@@ -137,9 +137,6 @@ def compute_metrics(values, name, dates=None, trades=0, pct_invested=1.0,
     excess_cagr = cagr - rf_annual
     calmar = excess_cagr / abs(max_dd) if max_dd != 0 else 0
 
-    # CAGR while invested
-    cagr_while_invested = cagr / pct_invested if pct_invested > 0 else 0
-
     # Worst rolling 12-month return (252 trading days)
     worst_12m = 0.0
     if len(vals) > 252:
@@ -169,7 +166,7 @@ def compute_metrics(values, name, dates=None, trades=0, pct_invested=1.0,
     return {
         "name": name, "end_value": vals[-1], "cagr": cagr, "sharpe": sharpe,
         "sortino": sortino, "max_dd": max_dd, "calmar": calmar,
-        "pct_invested": pct_invested, "cagr_while_invested": cagr_while_invested,
+        "pct_invested": pct_invested,
         "num_trades": trades, "worst_12m": worst_12m, "worst_month": worst_month,
         "time_underwater": time_underwater,
     }
@@ -750,16 +747,16 @@ def build_synthetic_upro(spy_df, expense_ratio=0.0091):
 
 def run_walk_forward(upro_df, vix_series, spy_df, tlt_df, tmf_df, tbill_daily):
     """Walk-forward: train on 2009-2016 (pick best DD params by Sharpe),
-    test on 2017-2026."""
+    test on 2017-2026.  Runs best params on the FULL dataset and splits
+    the equity curve at the boundary so strategy state (position, ATH,
+    cooling counter) carries over naturally."""
     print("\n  Walk-forward test...")
 
     train_end = "2016-12-31"
     test_start = "2017-01-01"
 
     upro_train = upro_df.loc[:train_end]
-    upro_test = upro_df.loc[test_start:]
     tbill_train = tbill_daily.loc[:train_end]
-    tbill_test = tbill_daily.loc[test_start:]
 
     # In-sample grid search
     best_sharpe = -np.inf
@@ -778,11 +775,26 @@ def run_walk_forward(upro_df, vix_series, spy_df, tlt_df, tmf_df, tbill_daily):
     print(f"    In-sample best: DD{int(best_params[0] * 100)}%/Cool{best_params[1]} "
           f"(Sharpe={best_sharpe:.3f})")
 
-    # In-sample metrics with best params
-    _, _, train_metrics = run_dd_exit(upro_train, best_params[0], best_params[1], tbill_train)
+    # Run best params on FULL dataset (state carries across boundary)
+    full_dates, full_vals, _ = run_dd_exit(upro_df, best_params[0], best_params[1],
+                                           tbill_daily)
 
-    # Out-of-sample
-    _, _, test_metrics = run_dd_exit(upro_test, best_params[0], best_params[1], tbill_test)
+    # Split at boundary to compute IS and OOS metrics separately
+    split_idx = full_dates.searchsorted(pd.Timestamp(test_start))
+    train_vals = full_vals[:split_idx]
+    train_dates = full_dates[:split_idx]
+    test_vals = full_vals[split_idx:]
+    test_dates = full_dates[split_idx:]
+
+    # Normalize test values to start at INITIAL_CAPITAL for fair CAGR comparison
+    test_vals_norm = test_vals * (INITIAL_CAPITAL / test_vals[0])
+
+    train_metrics = compute_metrics(
+        train_vals, f"WF Train", dates=train_dates,
+        rf_annual=avg_rf_annual(tbill_daily, train_dates))
+    test_metrics = compute_metrics(
+        test_vals_norm, f"WF Test", dates=test_dates,
+        rf_annual=avg_rf_annual(tbill_daily, test_dates))
 
     print(f"    OOS: CAGR={test_metrics['cagr']:.1%}, "
           f"Sharpe={test_metrics['sharpe']:.3f}, MaxDD={test_metrics['max_dd']:.1%}")
@@ -822,13 +834,15 @@ def chart_drawdowns(bm_dates, bm_vals, best_strats, path):
     bm_cm = np.maximum.accumulate(bm_vals)
     bm_dd = (bm_vals / bm_cm - 1) * 100
     ax.fill_between(bm_dates, bm_dd, 0, alpha=0.25, color=COLORS["upro_bh"], label="UPRO B&H")
+    dd_label = "DD Exit"
     for label, dates, vals, _ in best_strats:
-        if "DD Exit" in label:
+        if "DD Exit" in label or "DD" in label:
             v = np.array(vals)
             cm = np.maximum.accumulate(v)
             dd = (v / cm - 1) * 100
             ax.plot(dates, dd, label=label, linewidth=1.5, color=COLORS["dd_exit"])
-    ax.set_title("Drawdown Over Time: UPRO B&H vs. DD25%/Cool40", fontweight="bold", fontsize=12)
+            dd_label = label.split("(")[-1].rstrip(")") if "(" in label else label
+    ax.set_title(f"Drawdown Over Time: UPRO B&H vs. {dd_label}", fontweight="bold", fontsize=12)
     ax.set_ylabel("Drawdown (%)")
     ax.legend(loc="lower left", fontsize=9)
     ax.grid(True, alpha=0.3)

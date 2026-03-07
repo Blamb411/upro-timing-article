@@ -4,7 +4,7 @@
 
 - The S&P 500 has compounded at roughly 10% per year (with dividends) since 1950, turning $10,000 into over $4 million. Leveraged ETFs like SSO (2x) and UPRO (3x) amplify those returns -- UPRO has turned $100K into ~$9.6M since 2009 -- but with devastating drawdowns that most investors cannot survive.
 - I backtested 5 timing strategies across 16+ years of actual UPRO data (2009-2026, $100K starting capital): VIX filter, dual momentum, HFEA (UPRO/TMF), drawdown-triggered exit, and a composite signal. All signals are computed at the prior close and executed at the next market open.
-- The best risk-adjusted strategy -- a simple drawdown exit with a cooling period -- delivered a 0.86 Sharpe ratio (vs 0.78 for UPRO buy-and-hold and 0.85 for plain SPY) and cut the maximum drawdown from -77% to -42%, at the cost of about 12% less terminal wealth. Robustness testing (walk-forward validation, parameter heatmaps, and a synthetic pre-2009 stress test) confirms the result is not a fragile optimum.
+- The best risk-adjusted strategy -- a simple drawdown exit with a cooling period -- delivered a 0.86 Sharpe ratio (vs 0.78 for UPRO buy-and-hold and 0.85 for plain SPY) and cut the maximum drawdown from -77% to -42%, at the cost of about 12% less terminal wealth. Robustness testing (walk-forward validation, parameter heatmaps, and a synthetic pre-2009 stress test) suggests the result is not a fragile optimum.
 - An enhancement: parking idle cash in TLT (long-term Treasuries) instead of T-bills during cooling periods pushes the Sharpe to 0.89 and terminal wealth to $11.1M -- actually beating UPRO buy-and-hold -- by harvesting flight-to-quality rallies when stocks crash.
 
 ---
@@ -92,7 +92,7 @@ First, let's be clear about what I'm trying to beat -- and what I'm not.
 
 These are extraordinary numbers. No timing strategy in this analysis beats buy-and-hold on total return. If you have the iron stomach to hold through a -77% drawdown -- and I mean genuinely hold, not just say you would in a hypothetical -- then buy-and-hold is the mathematically optimal choice. (For comparison, plain SPY buy-and-hold over the same period has a 0.82 Sharpe -- UPRO's 3x leverage actually *reduces* risk-adjusted returns while tripling the volatility.)
 
-But an important caveat: this test period is overwhelmingly bullish. UPRO's inception happened to coincide with the beginning of the longest bull market in American history. Every timing strategy that says "hold UPRO most of the time" will look great in a period that is almost entirely up. There is no actual UPRO data for 2000-2009, which would have been devastating. (I address this with a synthetic backtest in the robustness section below.)
+But an important caveat that deserves emphasis: this entire test period is overwhelmingly bullish. UPRO's inception happened to coincide with the beginning of the longest bull market in American history. Every timing strategy that says "hold UPRO most of the time" will look great in a period that is almost entirely up. There is no actual UPRO data for 2000-2009, which would have been devastating. The 2009-2026 period includes drawdowns, but they were all followed by sharp recoveries -- a pattern that may not repeat. Results from this period should be treated as evidence of what *has* worked, not a guarantee of what *will* work. (I address the pre-2009 gap with a synthetic backtest in the robustness section below.)
 
 The major drawdown events visible in the data -- the 2011 debt ceiling crisis, the late-2018 Fed tightening scare, the 2020 COVID crash, and the 2022 rate-hiking bear market -- each inflicted serious damage on UPRO holders. The question is whether a systematic approach can navigate those periods more gracefully.
 
@@ -189,9 +189,9 @@ HFEA actually has the best Sortino ratio in the entire analysis -- meaning it ha
 
 The culprit is 2022. When the Fed started hiking aggressively, both stocks and bonds cratered simultaneously. The negative correlation that HFEA depends on simply broke. UPRO fell, and TMF fell alongside it. This is the strategy's Achilles heel, and it's not a theoretical risk -- it happened. **Verdict: interesting diversification, but the correlation assumption is fragile.**
 
-### Drawdown-Triggered Exit -- The Winner
+### Drawdown-Triggered Exit -- The Best Risk-Adjusted Performer
 
-This is the simplest concept and it produced the best risk-adjusted results. The rule: when UPRO falls X% from its all-time high, sell everything and move to cash (earning T-bill rates). Wait at least Y trading days (the "cooling period") before re-entering. Re-enter when UPRO makes a new all-time high or the cooling period expires.
+This is the simplest concept and it produced the strongest risk-adjusted results in this backtest. The rule: when UPRO falls X% from its all-time high, sell everything and move to cash (earning T-bill rates). Wait at least Y trading days (the "cooling period") before re-entering. Re-enter when UPRO makes a new all-time high or the cooling period expires.
 
 I tested 12 variants (four thresholds x three cooling periods):
 
@@ -214,11 +214,11 @@ I tested 12 variants (four thresholds x three cooling periods):
 
 A note on the DD15%/Cool60 anomaly: its $441K end value is dramatically worse than nearby variants ($2.0M for DD15%/Cool40, $1.5M for DD15%/Cool20). The 60-day cooling period forces cash positions through critical recovery windows -- you're sitting out during the fastest part of the bounce. This illustrates that parameter sensitivity is real. The strategy's edge comes from the specific threshold+cooling combination, not from drawdown exits as a general concept. (I address parameter sensitivity directly in the robustness section below.)
 
-The standout is **DD25%/Cool40**: exit when UPRO drops 25% from its peak, wait at least 40 trading days (~2 months) before re-entering.
+The standout is **DD25%/Cool40**: exit when UPRO drops 25% from its peak, wait at least 40 trading days (~2 months) before re-entering. But it's worth noting that DD25%/Cool40 is representative of a family of competitive parameters -- the heatmap below shows that DD20-25%/Cool20-40 all produce Sharpe ratios above 0.75. The specific "best" parameters would shift with a different test period. I use DD25%/Cool40 throughout as a concrete example, not as a claim that these exact numbers are uniquely optimal.
 
 Why it works: the 25% threshold is wide enough to avoid whipsaws from normal UPRO volatility (this is a 3x fund -- 10-15% pullbacks happen routinely) but catches genuine bear markets. The 40-day cooling period forces patience. You don't buy the first dead-cat bounce. You wait for the storm to pass.
 
-The trade-off is explicit: you give up about $1.2 million in terminal wealth (12% of buy-and-hold's end value) in exchange for a maximum drawdown that's **35 percentage points better** (-41.8% vs -76.8%). The Sharpe ratio improves from 0.78 to 0.86. 31 trade signals over 16+ years -- roughly one exit/re-entry cycle per year. You're invested 86% of the time.
+The trade-off is explicit: you give up about $1.2 million in terminal wealth (12% of buy-and-hold's end value) in exchange for a maximum drawdown that's **35 percentage points better** (-41.8% vs -76.8%). The Sharpe ratio improved from 0.78 to 0.86 over this test period. 31 trade signals over 16+ years -- roughly one exit/re-entry cycle per year. You're invested 86% of the time.
 
 ### Composite Signal
 
@@ -243,7 +243,7 @@ The 3-of-3 version gets the max drawdown down to -50%, competitive with some dra
 
 ![Equity Curves](charts/01_equity_curves.png)
 
-The risk/return scatter tells the story. DD25%/Cool40 sits in the sweet spot: it preserves 88% of buy-and-hold's terminal value while cutting the maximum drawdown nearly in half. It's the best risk-adjusted performer in the analysis.
+The risk/return scatter tells the story. DD25%/Cool40 sits in the sweet spot: it preserved 88% of buy-and-hold's terminal value while cutting the maximum drawdown nearly in half over this test period. It was the best risk-adjusted performer in the analysis -- though, as noted above, nearby parameter combinations produced similar results.
 
 ![Risk Return Scatter](charts/04_risk_return.png)
 
@@ -253,7 +253,7 @@ HFEA is a respectable second on Sharpe (0.83) thanks to its strong Sortino ratio
 
 ## Is This Overfitted? Robustness Testing
 
-The DD25%/Cool40 result is impressive, but skepticism is warranted. I selected these parameters because they looked best on 2009-2026 data. Here's how I stress-tested the finding.
+The DD25%/Cool40 result is impressive, but skepticism is warranted. These parameters were selected because they produced the best risk-adjusted results on 2009-2026 data -- a period dominated by a secular bull market with sharp but temporary drawdowns. The strategy's historical outperformance is real, but whether it will persist in future regimes (prolonged stagflation, a multi-year bear market, or a fundamentally different rate environment) is unknowable. Here's how I stress-tested the finding.
 
 ### Parameter Sensitivity
 
@@ -320,7 +320,7 @@ Every SMA gate reduced CAGR, reduced Sharpe, and -- counterintuitively -- increa
 
 The SMA gate test above uses the moving average only as a re-entry filter on top of the drawdown exit. A fair question is whether a pure SMA crossover -- hold UPRO when SPY is above its moving average, sell when it crosses below -- would work better as the *primary* timing rule, eliminating the drawdown exit entirely.
 
-This is a well-known trend-following approach. SPY's 200-day moving average is one of the most widely tracked technical indicators in finance. I also tested a variant inspired by the 80-delta options strategy: exit when SPY falls 2% below the SMA200 (providing a buffer to reduce whipsaws), and re-enter when it crosses back above.
+This is a well-known trend-following approach. SPY's 200-day moving average is one of the most widely tracked technical indicators in finance. I also tested a buffered variant: exit when SPY falls 2% below the SMA200 (providing a buffer to reduce whipsaws), and re-enter when it crosses back above.
 
 | Strategy | End Value | CAGR | Sharpe | Max DD | Trades | % Invested |
 |----------|-----------|------|--------|--------|--------|-----------|
@@ -330,7 +330,7 @@ This is a well-known trend-following approach. SPY's 200-day moving average is o
 | SMA50 | $737K | +12.7% | 0.50 | -52.3% | 282 | 72% |
 | SMA200/2%buf | $836K | +13.6% | 0.50 | -59.6% | 49 | 82% |
 
-None of the pure SMA filters come close to DD25%/Cool40 on any metric. SMA100 is the best of the group -- a 22.0% CAGR with a 0.73 Sharpe and -46.0% max drawdown -- but it still trails the drawdown exit by 9 percentage points of CAGR with a worse Sharpe and worse max drawdown. SMA50 whipsaws excessively (282 trades over 16 years) and bleeds returns through false signals. The 2% buffer variant, which mimics the 80-delta strategy's SMA exit rule, actually makes things *worse* than the plain SMA200 -- the buffer delays exits during genuine breakdowns, increasing drawdowns without meaningfully reducing whipsaws.
+None of the pure SMA filters come close to DD25%/Cool40 on any metric. SMA100 is the best of the group -- a 22.0% CAGR with a 0.73 Sharpe and -46.0% max drawdown -- but it still trails the drawdown exit by 9 percentage points of CAGR with a worse Sharpe and worse max drawdown. SMA50 whipsaws excessively (282 trades over 16 years) and bleeds returns through false signals. The 2% buffer variant actually makes things *worse* than the plain SMA200 -- the buffer delays exits during genuine breakdowns, increasing drawdowns without meaningfully reducing whipsaws.
 
 The fundamental problem is that SMA crossovers are trend-following signals, and UPRO's 3x leverage makes trend-following expensive. Every false signal costs you the spread between where you sold and where you rebuy -- and at 3x leverage, those round-trip costs compound quickly. The drawdown exit avoids this problem because it only fires during genuinely large declines (25%+ from peak), resulting in far fewer trades and far less time out of the market.
 
@@ -456,59 +456,15 @@ I want to be transparent about what this analysis can and cannot tell us.
 
 ---
 
-## How Does This Compare to Options-Based Leverage?
-
-Not every investor can or wants to hold leveraged ETFs. Some IRA custodians restrict them, and many investors are uncomfortable with a product that resets leverage daily and is subject to volatility decay. An alternative approach to leveraged equity exposure is buying deep in-the-money (80-delta) SPY call options, which provide roughly 1.5-2x leverage through embedded leverage in the option premium. When combined with an SMA200 trend filter — buy only when SPY is above its 200-day moving average — the options approach avoids bear market exposure entirely by sitting in cash below the moving average.
-
-Over the same 2015-2026 period with actual market data, the 80-delta options-only strategy produced a +24.7% CAGR (0.85 Sharpe, -39.1% max drawdown) compared to UPRO DD25/Cool40's +25.2% CAGR (0.79 Sharpe, -41.8% max drawdown). The returns are nearly identical, and the options approach actually edges ahead on risk-adjusted metrics. But the operational difference is enormous: 1,233 option trades over 11 years versus ~15 round-trips for the drawdown exit.
-
-### Stratifying Returns by Market Regime
-
-To understand *how* these strategies differ — not just in aggregate, but across different market environments — I bucketed all 201 months from 2009-2026 by SPY's monthly return and computed average returns for each strategy within each bucket. The regime-level summary:
-
-| Regime | Count | SPY Avg | UPRO B&H | UPRO DD25 | 80D Opts |
-|--------|-------|---------|----------|-----------|----------|
-| Bear (SPY < -2%) | 39 | -5.2% | -16.2% | -12.3% | -5.6% |
-| Flat (-2% to +2%) | 71 | +0.3% | +0.2% | +0.4% | +0.1% |
-| Bull (SPY >= +2%) | 91 | +4.5% | +13.1% | +10.5% | +5.2% |
-
-The full bucket-by-bucket breakdown reveals how each strategy's leverage ratio shifts across the return distribution:
-
-![Stratification Returns](charts/10_stratification_returns.png)
-
-![Leverage Ratios](charts/11_leverage_ratios.png)
-
-![Regime Summary](charts/12_regime_summary.png)
-
-### What the Data Reveals
-
-The stratification data exposes several non-obvious dynamics:
-
-**UPRO delivers ~3x but with asymmetry.** The average monthly leverage ratio is 3.14x across all buckets, confirming UPRO tracks its daily 3x mandate faithfully at the monthly level. But the ratio isn't constant. In small-loss months (SPY -1% to 0%), the effective leverage spikes to 4.6x because volatility drag amplifies small losses — daily 3x compounding systematically overshoots 3x of the monthly return when daily moves are choppy. In mild up-months (+0% to +1%), the ratio drops to 1.3x for the opposite reason.
-
-**DD25 compresses the tails, but with a mid-month exit trap.** In the worst months (SPY < -8%), DD25 loses only -13.0% vs UPRO B&H's -31.3% — the exit fired early and moved to cash before the worst of the drawdown. But in moderate-decline months (SPY -5% to -4%), DD25 actually performs *worse* than UPRO B&H (-16.5% vs -14.1%). This is the mid-month exit trap: the drawdown threshold triggers partway through the month, locking in the loss and moving to cash, then missing the partial recovery that brings SPY's monthly return back to only -5%. The monthly return captures "sold the dip + missed the bounce" in a single number. This doesn't hurt the long-term strategy — it's a one-month accounting artifact — but it explains why DD25's bear-month performance isn't monotonically better as losses deepen.
-
-**DD25 in severe crashes: early exit is the edge.** In the < -8% SPY bucket, DD25's leverage ratio is only 1.25x vs UPRO's 3.01x. Those months include events like March 2020 where the exit likely fired before the worst of the decline. In the -8% to -7% bucket, DD25's ratio jumps to 1.89x because those moderately bad months may not have pushed UPRO past the -25% threshold, so DD25 was fully exposed.
-
-**80-delta options have a natural floor from the SMA filter but cap gains via exits.** In the worst months, the options strategy loses only -2.5% (0.24x leverage ratio) because the SMA200 filter has already moved to cash during bear markets. In normal bull months (+2% to +5%), it delivers a consistent 1.5-1.7x leverage. But in extreme up-months (SPY > +7%), returns compress to less than 1x. The profit target (+50%) and max-hold (60-day) exits close positions before the full monthly move plays out, and sharp V-bottom recoveries often start below the SMA, meaning the portfolio wasn't fully deployed at the start of the rally.
-
-### The Simplicity Trade-Off
-
-UPRO DD25/Cool40 requires checking one number (the drawdown percentage) once a day. The 80-delta options strategy requires monitoring positions, rolling expirations, managing entries and exits across dozens of concurrent positions, and dealing with the occasional illiquid option chain.
-
-If you *can* hold UPRO and have the discipline to follow the DD25/Cool40 rule mechanically, it's the simpler, better choice. The options-based approach is worth considering only if leveraged ETFs are unavailable in your account or if you have the infrastructure and temperament for active options management.
-
----
-
 ## Conclusion
 
-Simple drawdown-triggered exits can meaningfully improve UPRO's risk profile without exotic indicators, frequent trading, or complex portfolio construction. The DD25%/Cool40 rule -- exit at a 25% drawdown, wait 40 trading days before re-entering -- delivered a 0.86 Sharpe ratio while cutting the maximum drawdown from -77% to -42%.
+Over the 2009-2026 test period, simple drawdown-triggered exits meaningfully improved UPRO's risk profile without exotic indicators, frequent trading, or complex portfolio construction. The DD25%/Cool40 rule -- exit at a 25% drawdown, wait 40 trading days before re-entering -- delivered a 0.86 Sharpe ratio while cutting the maximum drawdown from -77% to -42%.
 
 Parking idle cash in TLT during cooling periods pushes the result further: a 0.89 Sharpe ratio, $11.1M terminal wealth (beating buy-and-hold's $10.2M), and a -55% max drawdown. The TLT variant exploits the flight-to-quality effect -- when stocks crash, long-term Treasuries tend to rally -- turning the cooling period from dead time into a productive hedge.
 
 The trade-off is explicit. The T-bill variant caps max drawdown at -42% but gives up 12% of buy-and-hold's terminal wealth. The TLT variant beats buy-and-hold on wealth but accepts a -55% max drawdown. Pick the one that matches your risk tolerance.
 
-Robustness testing supports both variants. A parameter heatmap shows the DD25%/Cool40 parameters sit in a broad region of strong performance, not on a fragile peak. Walk-forward validation (train 2009-2016, test 2017-2026) confirms the approach works out-of-sample. And a synthetic pre-2009 stress test shows the strategy provides modest benefit even through the worst decade in modern market history.
+Robustness testing is encouraging for both variants. A parameter heatmap shows the DD25%/Cool40 parameters sit in a broad region of strong performance, not on a fragile peak. Walk-forward validation (train 2009-2016, test 2017-2026) suggests the approach works out-of-sample. And a synthetic pre-2009 stress test shows the strategy provided modest benefit even through the worst decade in modern market history. That said, these tests still draw from a limited set of market regimes -- a prolonged sideways or inflationary bear market would be the real test.
 
 This is not a recommendation to buy UPRO. Leveraged ETFs are inherently risky instruments with structural headwinds from volatility decay. But if you've already decided to hold UPRO -- and millions of investors have -- then managing that risk with a systematic, rules-based approach is better than managing it with your gut.
 
