@@ -47,7 +47,7 @@ I used actual UPRO daily prices from inception (June 25, 2009) through March 202
 
 - **Data:** Yahoo Finance, split-adjusted (auto_adjust), price returns only. Dividends are excluded, which is a conservative assumption -- actual returns for SPY would be modestly higher.
 - **Execution:** All signals use prior-day closing data, with trades executed at the following market open. There is no look-ahead bias and no same-day execution.
-- **Cash yield:** Cash earns the prevailing 13-week T-bill rate (^IRX), compounded daily.
+- **Cash yield:** Cash earns the prevailing 13-week Treasury bill rate (^IRX). The quoted annual yield is converted to a daily rate assuming 252 trading days per year and compounded on each trading day when the strategy is in cash.
 - **Slippage:** Not modeled. Given the liquidity of the instruments tested (UPRO, SPY, TLT), the impact should be small relative to the magnitude of the results, though open-auction spreads can widen during stress periods.
 - **No intraday stops:** All signals are end-of-day close-based. No intraday monitoring is required. All-time highs and drawdowns are measured on closing prices, not intraday.
 - **Sharpe and Sortino ratios:** Computed using excess returns over the average 13-week T-bill rate (^IRX) prevailing during the strategy's time period, annualized. Calmar ratio uses excess CAGR over the same average risk-free rate.
