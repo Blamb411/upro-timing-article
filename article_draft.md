@@ -1,34 +1,47 @@
-# UPRO Without the Wipeout: 5 Timing Strategies That Cut Drawdowns by 40%
+# Long-term Profits by Leveraging the S&P 500
 
 ## Summary
 
-- UPRO has turned $100K into $10.2M since 2009 -- roughly 100x. But its -77% maximum drawdown means a $1M portfolio drops to $230K, and most investors bail out long before the recovery.
-- A leverage comparison reveals UPRO's hidden costs: a frictionless 3x position would have returned $22.6M, while 3x via margin yields only $3.1M. A static margin account avoids the -77% drawdown but would be margin-called in any period that doesn't start at a market bottom.
+- The S&P 500 has compounded at roughly 10% per year (with dividends) since 1950, turning $10,000 into over $4 million. Leveraged ETFs like SSO (2x) and UPRO (3x) amplify those returns -- UPRO has turned $100K into ~$9.6M since 2009 -- but with devastating drawdowns that most investors cannot survive.
 - I backtested 5 timing strategies across 16+ years of actual UPRO data (2009-2026, $100K starting capital): VIX filter, dual momentum, HFEA (UPRO/TMF), drawdown-triggered exit, and a composite signal. All signals are computed at the prior close and executed at the next market open.
-- The best risk-adjusted strategy -- a simple drawdown exit with a cooling period -- delivered a 0.90 Sharpe ratio and cut the maximum drawdown from -77% to -42%, at the cost of about 12% less terminal wealth. Robustness testing (walk-forward validation, parameter heatmaps, and a synthetic pre-2009 stress test) confirms the result is not a fragile optimum.
-- An enhancement: parking idle cash in TLT (long-term Treasuries) instead of T-bills during cooling periods pushes the Sharpe to 0.92 and terminal wealth to $11.1M -- actually beating UPRO buy-and-hold -- by harvesting flight-to-quality rallies when stocks crash. The 3x bond alternative (TMF) boosts returns further but gives back all the drawdown protection.
+- The best risk-adjusted strategy -- a simple drawdown exit with a cooling period -- delivered a 0.90 Sharpe ratio (vs 0.80 for UPRO buy-and-hold and 0.89 for plain SPY) and cut the maximum drawdown from -77% to -42%, at the cost of about 12% less terminal wealth. Robustness testing (walk-forward validation, parameter heatmaps, and a synthetic pre-2009 stress test) confirms the result is not a fragile optimum.
+- An enhancement: parking idle cash in TLT (long-term Treasuries) instead of T-bills during cooling periods pushes the Sharpe to 0.92 and terminal wealth to $11.1M -- actually beating UPRO buy-and-hold -- by harvesting flight-to-quality rallies when stocks crash.
 
 ---
 
-## The Problem With UPRO
+## The Case for Leveraged Index Investing
 
-UPRO is one of the most striking backtests in retail investing. Since its inception on June 23, 2009, a $100,000 investment has grown to approximately $10.2 million. That's a 32.0% compound annual growth rate over 16+ years. No mainstream ETF comes close.
+Many conservative long-term investors allocate heavily to S&P 500 index funds -- and history vindicates them. Since January 1950, the S&P 500 has delivered approximately 8.2% annually in price appreciation alone. Including reinvested dividends, the total return rises to roughly 10-11% per year. A $10,000 investment at the start of 1950 would have grown to over $4 million in price terms -- and substantially more with dividends reinvested. Few investment strategies can match this combination of simplicity, diversification, and compounding power over multiple decades.
 
-You already know the catch. UPRO provides 3x daily leveraged exposure to the S&P 500, and that leverage cuts both ways. During the COVID crash in March 2020, UPRO lost roughly two-thirds of its value in weeks. During the 2022 rate-hiking cycle, it drew down brutally. Over the full test period, UPRO's maximum drawdown was **-76.8%**. That's not a typo.
+With such a strong track record, a natural question arises: what would happen if the investment were leveraged?
+
+Two exchange-traded funds make this straightforward for retail investors. **SSO** (ProShares Ultra S&P 500) provides 2x daily leveraged exposure to the S&P 500 and has been available since June 2006. **UPRO** (ProShares UltraPro S&P 500) provides 3x daily leverage and launched in June 2009. Both reset their leverage ratio daily -- a critical mechanical detail I'll return to shortly.
+
+The raw numbers are compelling. Since inception, a $100,000 investment in SSO would have grown to approximately $1.5 million (a 14.9% compound annual growth rate). UPRO has been even more dramatic: $100,000 invested at inception has grown to roughly $9.6 million, a 31.5% CAGR over 16+ years. No mainstream ETF comes close to these figures.
+
+But these headline returns mask serious risks that most investors underestimate.
+
+---
+
+## The Problem With Leveraged ETFs
+
+UPRO's track record is one of the most striking backtests in retail investing. A 31.5% CAGR turns $100K into nearly 100x over 16 years. The temptation to simply buy and hold is powerful.
+
+You already know the catch. That leverage cuts both ways. During the COVID crash, UPRO fell from $38.73 on February 19, 2020 to $8.98 on March 23 -- a **-76.8%** drawdown in just 23 trading days. That remains its worst decline ever. The 2022 rate-hiking bear market inflicted a -63.9% drawdown (from $75.08 to $27.07 over nine months). These are not outliers. They are the recurring cost of 3x leverage.
 
 Here's what -77% actually feels like. Your $1 million account shows $230,000. You have no idea if it's going to $150,000 or $100,000. Every financial commentator is explaining why this time is different. Your spouse is asking questions. And the "rational" move -- hold and wait for recovery -- requires you to believe in mean reversion with absolute conviction while staring at a six-figure loss.
 
 Most people sell at the bottom. The backtested returns assume you don't.
 
-This article asks a simple question: can we systematically reduce UPRO's drawdowns while keeping most of the upside? Not a magic system -- a risk management framework. I tested five approaches, each using a different market signal, across 16+ years of actual UPRO price data. The results are instructive.
+There's also a structural issue. UPRO resets its 3x leverage daily, which means it's subject to volatility decay -- sometimes called the "constant leverage trap." In a choppy, sideways market, UPRO can lose money even if the S&P 500 ends up flat. As ProShares themselves warn: "Due to the compounding of daily returns, ProShares' returns over periods other than one day will likely differ in amount and possibly direction from the target return for the same period." This is not a set-and-forget instrument, regardless of what the long-term backtest suggests.
 
-A quick note on mechanics: UPRO resets its 3x leverage daily, which means it's subject to volatility decay. In a choppy, sideways market, UPRO can lose money even if the S&P 500 ends up flat. This is not a set-and-forget instrument, regardless of what the long-term backtest suggests.
+This article asks a simple question: can you systematically reduce UPRO's drawdowns while keeping most of the upside? Not a magic system -- a risk management framework. I tested five approaches, each using a different market signal, across 16+ years of actual UPRO price data. The results are instructive.
 
 ---
 
 ## What I Tested
 
-I used actual UPRO daily prices from inception (June 23, 2009) through March 2026 -- over 16 years. Starting capital was $100,000. When a strategy signals "out," the portfolio moves to cash earning the prevailing 13-week T-bill rate (a realistic assumption reflecting money market fund yields).
+I used actual UPRO daily prices from inception (June 25, 2009) through March 2026 -- over 16 years. Starting capital was $100,000. When a strategy signals "out," the portfolio moves to cash earning the prevailing 13-week T-bill rate (a realistic assumption reflecting money market fund yields).
 
 **Methodology Note:**
 
@@ -64,7 +77,7 @@ I report CAGR, Sharpe ratio (the standard measure of risk-adjusted return), Sort
 
 ## The Benchmark: UPRO Buy-and-Hold
 
-First, let's be clear about what we're trying to beat -- and what we're not.
+First, let's be clear about what I'm trying to beat -- and what I'm not.
 
 | Metric | UPRO Buy & Hold |
 |--------|----------------|
@@ -78,15 +91,15 @@ First, let's be clear about what we're trying to beat -- and what we're not.
 
 These are extraordinary numbers. No timing strategy in this analysis beats buy-and-hold on total return. If you have the iron stomach to hold through a -77% drawdown -- and I mean genuinely hold, not just say you would in a hypothetical -- then buy-and-hold is the mathematically optimal choice.
 
-But an important caveat: this test period is overwhelmingly bullish. UPRO's inception happened to coincide with the beginning of the longest bull market in American history. Every timing strategy that says "hold UPRO most of the time" will look great in a period that is almost entirely up. We don't have actual UPRO data for 2000-2009, which would have been devastating. (We address this with a synthetic backtest in the robustness section below.)
+But an important caveat: this test period is overwhelmingly bullish. UPRO's inception happened to coincide with the beginning of the longest bull market in American history. Every timing strategy that says "hold UPRO most of the time" will look great in a period that is almost entirely up. There is no actual UPRO data for 2000-2009, which would have been devastating. (I address this with a synthetic backtest in the robustness section below.)
 
-The major drawdown events visible in the data -- the 2011 debt ceiling crisis, the late-2018 Fed tightening scare, the 2020 COVID crash, and the 2022 rate-hiking bear market -- each inflicted serious damage on UPRO holders. The question is whether we can navigate those periods more gracefully.
+The major drawdown events visible in the data -- the 2011 debt ceiling crisis, the late-2018 Fed tightening scare, the 2020 COVID crash, and the 2022 rate-hiking bear market -- each inflicted serious damage on UPRO holders. The question is whether a systematic approach can navigate those periods more gracefully.
 
 ---
 
 ## The Cost of Daily Leverage: UPRO vs. Synthetic 3x SPY
 
-Before we get to timing strategies, it's worth understanding what UPRO actually costs you relative to other ways of getting 3x exposure to the S&P 500.
+Before getting to timing strategies, it's worth understanding what UPRO actually costs you relative to other ways of getting 3x exposure to the S&P 500.
 
 I modeled four alternatives alongside UPRO buy-and-hold: a frictionless 3x daily-rebalanced position (same daily mechanics as UPRO but with zero expense ratio), a daily-rebalanced version with 6% annual borrowing cost, and -- critically -- a **static 3x leveraged position** where you invest $100K of equity, borrow $200K at 6%, buy $300K of SPY, and simply hold. Plain SPY buy-and-hold serves as the 1x baseline.
 
@@ -121,7 +134,7 @@ I extended the analysis using S&P 500 index data (^GSPC) going back to 1950 to t
 | Dot-Com Crash (Mar 2000 - Oct 2002) | -49% | Margin call | Apr 14, 2000 | $65,719 |
 | UPRO Era (Jun 2009 - Mar 2026) | +648% | **No margin call** | N/A | $1,700,428 |
 
-The pattern is striking. In five out of six test periods, the static margin account was forcibly liquidated. During the dot-com crash, the margin call came just 15 trading days after entry. During the GFC, it took about 3 months. Only the UPRO era -- which uniquely starts at a generational market bottom -- survived. And even over the full 1950-2026 history, despite the S&P 500 compounding at +8.2% annually for 76 years, the static 3x account got margin-called during the 1973-74 bear market and was stuck at $269K for the remaining 52 years while unlevered S&P 500 grew to $41.3 million.
+The pattern is striking. In five out of six test periods, the static margin account was forcibly liquidated. During the dot-com crash, the margin call came just 15 trading days after entry. During the GFC, it took about 3 months. Only the UPRO era -- which uniquely starts at a generational market bottom -- survived. And even over the full 1950-2026 history, despite the S&P 500 compounding at +8.2% annually for 76 years, the static 3x account got margin-called during the 1973-74 bear market. The 1950-1974 bull market had grown the account substantially, but the static leverage ratio had also drifted -- accumulated gains reduced the effective leverage well below 3x, yet a severe enough decline still breached the 25% maintenance margin requirement. Once liquidated at $269K, the account sat in cash for the remaining 52 years while unlevered S&P 500 grew to $41.3 million.
 
 ### Daily-Rebalanced 3x Across History
 
@@ -133,7 +146,7 @@ The daily-rebalanced strategies can't be margin-called (leverage resets daily), 
 | Lost Decade (2000-2009) | $77K / -2.6% | $10K / -20.5% | $3K / -29.5% |
 | GFC Peak-to-Trough | $43K / -44.8% | $4.3K / -89.2% | $3.6K / -90.5% |
 
-The frictionless 3x is extraordinary over 76 years -- $100K becomes $20.0 billion -- but it's a fantasy: no one can maintain 3x leverage for free. Add realistic 6% borrowing costs and $100K grows to just $2.2M over 76 years, barely keeping pace with the S&P 500's $41.3M at 1x. During the lost decade, daily-rebalanced 3x with costs destroyed 97% of your capital. Volatility decay in a choppy, declining market is a meat grinder for leveraged strategies.
+The frictionless 3x is extraordinary over 76 years -- $100K becomes $20.0 billion -- but it's a fantasy: no one can maintain 3x leverage for free. Add realistic 6% borrowing costs and $100K grows to just $2.2M over 76 years -- a fraction of the S&P 500's $41.3M at 1x. Three times the risk, one-twentieth the return. During the lost decade, daily-rebalanced 3x with costs destroyed 97% of your capital. Volatility decay in a choppy, declining market is a meat grinder for leveraged strategies.
 
 ### What This Means
 
@@ -198,7 +211,7 @@ I tested 12 variants (four thresholds x three cooling periods):
 
 ![Drawdown Comparison](charts/03_drawdowns.png)
 
-A note on the DD15%/Cool60 anomaly: its $441K end value is dramatically worse than nearby variants ($2.0M for DD15%/Cool40, $1.5M for DD15%/Cool20). The 60-day cooling period forces cash positions through critical recovery windows -- you're sitting out during the fastest part of the bounce. This illustrates that parameter sensitivity is real. The strategy's edge comes from the specific threshold+cooling combination, not from drawdown exits as a general concept. (We address parameter sensitivity directly in the robustness section below.)
+A note on the DD15%/Cool60 anomaly: its $441K end value is dramatically worse than nearby variants ($2.0M for DD15%/Cool40, $1.5M for DD15%/Cool20). The 60-day cooling period forces cash positions through critical recovery windows -- you're sitting out during the fastest part of the bounce. This illustrates that parameter sensitivity is real. The strategy's edge comes from the specific threshold+cooling combination, not from drawdown exits as a general concept. (I address parameter sensitivity directly in the robustness section below.)
 
 The standout is **DD25%/Cool40**: exit when UPRO drops 25% from its peak, wait at least 40 trading days (~2 months) before re-entering.
 
@@ -239,7 +252,7 @@ HFEA is a respectable second on Sharpe (0.88) thanks to its strong Sortino ratio
 
 ## Is This Overfitted? Robustness Testing
 
-The DD25%/Cool40 result is impressive, but skepticism is warranted. We selected these parameters because they looked best on 2009-2026 data. Here's how we stress-tested the finding.
+The DD25%/Cool40 result is impressive, but skepticism is warranted. I selected these parameters because they looked best on 2009-2026 data. Here's how I stress-tested the finding.
 
 ### Parameter Sensitivity
 
@@ -255,7 +268,7 @@ The strongest test of parameter stability: train on one period, test on another.
 
 The in-sample winner was DD30%/Cool10 (Sharpe 1.01) -- notably *not* DD25%/Cool40. But when applied to the 2017-2026 out-of-sample period, DD30%/Cool10 delivered a 30.4% CAGR, 0.81 Sharpe, and -64.7% max drawdown. The strategy still works out-of-sample, even though the exact best parameters shifted.
 
-The key insight: the broad DD20-30%/Cool10-40 region produces strong results across both periods. DD25%/Cool40 wasn't the in-sample winner, which paradoxically strengthens our confidence -- we didn't cherry-pick the single best in-sample cell.
+The key insight: the broad DD20-30%/Cool10-40 region produces strong results across both periods. DD25%/Cool40 wasn't the in-sample winner, which paradoxically strengthens confidence -- I didn't cherry-pick the single best in-sample cell.
 
 | Metric | In-Sample (2009-2016) | Out-of-Sample (2017-2026) |
 |--------|----------------------|--------------------------|
@@ -300,15 +313,35 @@ I tested adding SMA50, SMA100, and SMA200 gates to the DD25%/Cool40 re-entry rul
 
 Every SMA gate reduced CAGR, reduced Sharpe, and -- counterintuitively -- increased max drawdown. The longer the SMA lookback, the worse the damage. The explanation: after a drawdown, the SMA gate delays re-entry while waiting for the moving average to confirm an uptrend. But the fastest gains come in the early stages of recovery, exactly when the SMA is still below the price. By waiting for SMA confirmation, you miss the bounce.
 
-The original DD25%/Cool40 rule -- re-enter after the cooling period expires or on a new ATH -- already handles bear markets effectively. The cooling period provides the patience; the ATH check provides the optimism. Adding an SMA gate is redundant at best and actively harmful at worst.
-
 ![SMA Gate Comparison](charts/08_sma_gate.png)
+
+### What About SMA as the Primary Signal?
+
+The SMA gate test above uses the moving average only as a re-entry filter on top of the drawdown exit. A fair question is whether a pure SMA crossover -- hold UPRO when SPY is above its moving average, sell when it crosses below -- would work better as the *primary* timing rule, eliminating the drawdown exit entirely.
+
+This is a well-known trend-following approach. SPY's 200-day moving average is one of the most widely tracked technical indicators in finance. I also tested a variant inspired by the 80-delta options strategy: exit when SPY falls 2% below the SMA200 (providing a buffer to reduce whipsaws), and re-enter when it crosses back above.
+
+| Strategy | End Value | CAGR | Sharpe | Max DD | Trades | % Invested |
+|----------|-----------|------|--------|--------|--------|-----------|
+| **DD25%/Cool40** | **$9.0M** | **+31.0%** | **0.90** | **-41.8%** | **31** | **86%** |
+| SMA200 | $1.2M | +16.3% | 0.61 | -57.9% | 89 | 80% |
+| SMA100 | $2.7M | +22.0% | 0.77 | -46.0% | 167 | 78% |
+| SMA50 | $737K | +12.7% | 0.54 | -52.3% | 282 | 72% |
+| SMA200/2%buf | $836K | +13.6% | 0.53 | -59.6% | 49 | 82% |
+
+None of the pure SMA filters come close to DD25%/Cool40 on any metric. SMA100 is the best of the group -- a 22.0% CAGR with a 0.77 Sharpe and -46.0% max drawdown -- but it still trails the drawdown exit by 9 percentage points of CAGR with a worse Sharpe and worse max drawdown. SMA50 whipsaws excessively (282 trades over 16 years) and bleeds returns through false signals. The 2% buffer variant, which mimics the 80-delta strategy's SMA exit rule, actually makes things *worse* than the plain SMA200 -- the buffer delays exits during genuine breakdowns, increasing drawdowns without meaningfully reducing whipsaws.
+
+The fundamental problem is that SMA crossovers are trend-following signals, and UPRO's 3x leverage makes trend-following expensive. Every false signal costs you the spread between where you sold and where you rebuy -- and at 3x leverage, those round-trip costs compound quickly. The drawdown exit avoids this problem because it only fires during genuinely large declines (25%+ from peak), resulting in far fewer trades and far less time out of the market.
+
+![SMA Filter Comparison](charts/13_sma_filter.png)
+
+The bottom line: whether used as a re-entry gate or as the primary signal, moving average crossovers underperform the simple drawdown exit for UPRO timing. The drawdown exit's advantage is that it responds to UPRO's actual price behavior rather than trying to infer trend direction from SPY.
 
 ---
 
 ## What to Do With Idle Cash: T-Bills vs. Bonds
 
-So far, the DD25%/Cool40 strategy parks cash in T-bills during cooling periods -- safe, boring, and earning whatever the prevailing short-term rate is. But cooling periods tend to coincide with stock market stress, which is exactly when long-term Treasuries rally (flight to quality). Can we exploit that?
+So far, the DD25%/Cool40 strategy parks cash in T-bills during cooling periods -- safe, boring, and earning whatever the prevailing short-term rate is. But cooling periods tend to coincide with stock market stress, which is exactly when long-term Treasuries rally (flight to quality). Can you exploit that?
 
 I tested three cash vehicles during the cooling periods:
 
@@ -323,31 +356,31 @@ I tested three cash vehicles during the cooling periods:
 | TMF | $12.1M | +33.4% | 0.87 | 1.13 | -76.7% | 0.43 |
 | *UPRO B&H* | *$10.2M* | *+32.0%* | *0.80* | *0.99* | *-76.8%* | *0.42* |
 
-The TLT variant is the standout. It achieves the highest Sharpe ratio in the entire analysis (0.92) and is the *only* timing variant that beats UPRO buy-and-hold on terminal wealth ($11.1M vs $10.2M). The Sortino ratio (1.17) is also the best, reflecting particularly good downside risk management.
+Both bond variants beat UPRO buy-and-hold on terminal wealth: TLT ($11.1M) and TMF ($12.1M) versus B&H's $10.2M. But TLT is the standout on risk-adjusted metrics. It achieves the highest Sharpe ratio in the entire analysis (0.92) with a manageable -55.3% max drawdown. The Sortino ratio (1.17) is also the best, reflecting particularly good downside risk management. TMF generates even more terminal wealth ($12.1M) but at -76.7% max drawdown -- essentially giving back the entire drawdown advantage that makes the timing strategy worthwhile.
 
 ### Why TLT Works
 
 The logic is straightforward: the DD exit fires during stock market drawdowns, and long-term Treasuries tend to rally during exactly those periods. Here are the actual TLT and TMF returns during each cooling period:
 
-| Period | Days | TLT Return | TMF Return |
-|--------|------|-----------|------------|
-| May-Jul 2010 | 60 | +1.7% | +3.4% |
-| Aug-Oct 2011 (debt ceiling) | 59 | +18.5% | +58.4% |
-| Nov 2011-Jan 2012 | 55 | -1.5% | -5.9% |
-| Jun-Jul 2012 | 57 | +0.6% | +0.8% |
-| Aug-Oct 2015 | 57 | -0.3% | -2.1% |
-| Jan-Mar 2016 | 60 | +3.1% | +8.2% |
-| Feb-Apr 2018 | 60 | +3.0% | +8.6% |
-| Oct-Dec 2018 | 60 | +6.5% | +19.6% |
-| Feb-Apr 2020 (COVID) | 59 | +10.2% | +20.4% |
-| Sep-Nov 2020 | 54 | -3.5% | -11.1% |
-| Jan-Mar 2022 (rate hikes) | 57 | -8.6% | -25.5% |
-| Apr-Jun 2022 | 58 | -6.8% | -21.3% |
-| Sep-Nov 2022 | 56 | -10.1% | -29.8% |
-| Oct-Dec 2023 | 49 | +18.1% | +58.9% |
-| Mar-May 2025 | 57 | -1.5% | -7.4% |
+| Period | Days | T-bill | TLT Return | TMF Return |
+|--------|------|--------|-----------|------------|
+| May-Jul 2010 | 60 | +0.0% | +1.7% | +3.4% |
+| Aug-Oct 2011 (debt ceiling) | 59 | +0.0% | +18.5% | +58.4% |
+| Nov 2011-Jan 2012 | 55 | +0.0% | -1.5% | -5.9% |
+| Jun-Jul 2012 | 57 | +0.0% | +0.6% | +0.8% |
+| Aug-Oct 2015 | 57 | +0.0% | -0.3% | -2.1% |
+| Jan-Mar 2016 | 60 | +0.1% | +3.1% | +8.2% |
+| Feb-Apr 2018 | 60 | +0.4% | +3.0% | +8.6% |
+| Oct-Dec 2018 | 60 | +0.5% | +6.5% | +19.6% |
+| Feb-Apr 2020 (COVID) | 59 | +0.1% | +10.2% | +20.4% |
+| Sep-Nov 2020 | 54 | +0.0% | -3.5% | -11.1% |
+| Jan-Mar 2022 (rate hikes) | 57 | +0.1% | -8.6% | -25.5% |
+| Apr-Jun 2022 | 58 | +0.2% | -6.8% | -21.3% |
+| Sep-Nov 2022 | 56 | +0.8% | -10.1% | -29.8% |
+| Oct-Dec 2023 | 49 | +1.0% | +18.1% | +58.9% |
+| Mar-May 2025 | 57 | +0.9% | -1.5% | -7.4% |
 
-The pattern is clear. During genuine flight-to-quality events (2011 debt ceiling, 2018 tightening scare, COVID, late 2023), TLT delivers strong positive returns while you're out of UPRO. During rate-hiking periods (2022), TLT loses money -- but the losses are manageable (-7% to -10%), not catastrophic.
+The pattern is clear. During genuine flight-to-quality events (2011 debt ceiling, 2018 tightening scare, COVID, late 2023), TLT delivers strong positive returns while you're out of UPRO. During rate-hiking periods (2022), TLT loses money -- but the losses are manageable (-7% to -10%), not catastrophic. T-bills, by contrast, earned essentially nothing during the ZIRP years (2010-2016, 2020) and only meaningful returns once the Fed started hiking in 2022 -- precisely the periods where TLT was losing money.
 
 TMF amplifies both sides: +58% during the 2011 debt ceiling, but -30% during the 2022 rate hikes. The 3x leverage turns a useful hedge into a coin flip.
 
@@ -376,7 +409,7 @@ If you want to apply the DD25%/Cool40 strategy, here's the complete process:
 
 You can do this with a simple spreadsheet. Check once a day after the close. This is not day trading -- it's closer to a quarterly rebalancing discipline, just triggered by drawdowns instead of the calendar.
 
-**Tax considerations.** Each exit is a taxable event. At roughly 15 round-trip trades over 16+ years (~1 per year), this is manageable but real. In an IRA or 401(k), it's a non-issue. In a taxable account, most exits during drawdowns will be at a loss, making them tax-loss harvesting opportunities.
+**Tax considerations.** Each exit is a taxable event. At roughly 15 round-trip trades over 16+ years (~1 per year), this is manageable but real. In an IRA or 401(k), it's a non-issue. In a taxable account, most exits are actually gains (12 of 15 historically) because the 25% drawdown trigger fires from the all-time high, not from the entry price -- so exits typically occur well above where you bought in. The three loss exits (early 2012, early 2016, spring 2022) came from quick whipsaws where re-entry was followed by another drawdown, and those do provide tax-loss harvesting opportunities.
 
 **Transaction costs.** At 31 trade signals over 16+ years and $0 commissions at most brokers, costs are negligible.
 
@@ -386,7 +419,7 @@ You can do this with a simple spreadsheet. Check once a day after the close. Thi
 
 ---
 
-## Where Are We Now?
+## Where Is the Strategy Now?
 
 If you had been following the DD25%/Cool40 strategy from UPRO's inception, here's your current position as of March 2, 2026:
 
@@ -414,7 +447,7 @@ I want to be transparent about what this analysis can and cannot tell us.
 
 **Survivorship bias, partially addressed.** UPRO launched in June 2009, at the start of one of the greatest bull markets ever. The synthetic pre-2009 backtest shows the strategy survives the lost decade, though barely. In a truly catastrophic 3x environment (like 2000-2002), no simple timing rule can prevent devastating losses.
 
-**Volatility decay is real.** We used actual UPRO prices, so the decay from daily rebalancing is embedded in the data. But over longer periods, 3x daily leverage systematically underperforms 3x the index return. This is a feature of the product, not a modeling error.
+**Volatility decay is real.** I used actual UPRO prices, so the decay from daily rebalancing is embedded in the data. But over longer periods, 3x daily leverage systematically underperforms 3x the index return. This is a feature of the product, not a modeling error.
 
 **Price returns vs total returns.** This analysis uses price returns only (dividends excluded for SPY and related calculations). This is a conservative assumption -- including dividends would modestly improve both the benchmark and timing strategies. UPRO itself targets 3x the daily *price* return of the S&P 500 (before fees), so this is the appropriate comparison for the UPRO-specific results.
 
@@ -482,6 +515,8 @@ The real value of a timing strategy isn't the extra Sharpe points. It's the abil
 
 ---
 
-*Disclosure: I am long SPY (5,000+ shares across multiple accounts) and hold deep in-the-money SPY and QQQ LEAPS calls. I do not hold UPRO.*
+*Disclosure: I/we are long SPY (5,000+ shares across multiple accounts) and hold deep in-the-money SPY and QQQ LEAPS calls. I do not hold UPRO, SSO, TMF, or any other leveraged ETF.*
+
+*I wrote this article myself, and it expresses my own opinions. I am not receiving compensation for it (other than from Seeking Alpha). I have no business relationship with any company whose stock is mentioned in this article.*
 
 *The analysis uses historical data from June 2009 through March 2026. Past performance does not guarantee future results. This article is for informational purposes only and does not constitute investment advice.*

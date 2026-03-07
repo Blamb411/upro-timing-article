@@ -492,6 +492,67 @@ def run_dd_exit_sma_gate(upro_df, spy_df, threshold, cool_days, tbill_daily, sma
         values, name, dates=common, trades=trades, pct_invested=pct_inv)
 
 
+def run_sma_filter(upro_df, spy_df, tbill_daily, sma_length=200, exit_buffer=0.0):
+    """Pure SMA-based strategy: SPY SMA drives entry/exit, UPRO is held.
+    Entry: buy UPRO when SPY closes above SMA(N).
+    Exit: sell UPRO when SPY closes below SMA(N) * (1 - exit_buffer).
+    Cash earns T-bill rate. Next-open execution.
+    """
+    common = upro_df.index.intersection(spy_df.index)
+    upro_open = upro_df.loc[common, "Open"].values
+    upro_close = upro_df.loc[common, "Close"].values
+    spy_close = spy_df.loc[common, "Close"].values
+    tbill = tbill_daily.reindex(common).fillna(0).values
+    sma = pd.Series(spy_close).rolling(sma_length).mean().values
+
+    shares = 0.0
+    portfolio = INITIAL_CAPITAL
+    invested = False
+    exit_signal = False
+    enter_signal = False
+    values = [INITIAL_CAPITAL]
+    trades = 0
+    days_invested = 0
+
+    for i in range(1, len(upro_close)):
+        # Execute pending signals at today's open
+        if exit_signal:
+            portfolio = shares * upro_open[i]
+            shares = 0.0
+            invested = False
+            exit_signal = False
+        elif enter_signal:
+            shares = portfolio / upro_open[i]
+            invested = True
+            enter_signal = False
+
+        if invested:
+            val = shares * upro_close[i]
+            values.append(val)
+            days_invested += 1
+
+            # Check exit: SPY below SMA * (1 - buffer)
+            if (not np.isnan(sma[i])
+                    and spy_close[i] < sma[i] * (1 - exit_buffer)):
+                exit_signal = True
+                trades += 1
+        else:
+            portfolio *= (1 + tbill[i])
+            values.append(portfolio)
+
+            # Check entry: SPY above SMA
+            if (not np.isnan(sma[i])
+                    and spy_close[i] > sma[i]):
+                enter_signal = True
+                trades += 1
+
+    pct_inv = days_invested / max(len(values) - 1, 1)
+    buf_str = f"/{int(exit_buffer*100)}%buf" if exit_buffer > 0 else ""
+    name = f"SMA{sma_length}{buf_str}"
+    return common, np.array(values), compute_metrics(
+        values, name, dates=common, trades=trades, pct_invested=pct_inv)
+
+
 def run_dd_exit_bond(upro_df, bond_df, threshold, cool_days, bond_name="TLT"):
     """DD exit with a bond ETF as cash vehicle during cooling periods.
     Exit: sell UPRO at next open, buy bond ETF at same open.
@@ -967,6 +1028,40 @@ def chart_sma_gate(base_dates, base_vals, sma_results, path):
     print(f"  Saved: {path}")
 
 
+def chart_sma_filter(bm_dates, bm_vals, dd_dates, dd_vals, sma_filter_results, path):
+    """Chart 13: Pure SMA filter comparison — UPRO B&H vs DD25/Cool40 vs SMA filters."""
+    fig, ax = plt.subplots(figsize=(10, 6))
+    ax.semilogy(bm_dates, bm_vals, label="UPRO B&H (Sharpe 0.80)",
+                linewidth=2, color=COLORS["upro_bh"], alpha=0.5)
+    ax.semilogy(dd_dates, dd_vals, label="DD25%/Cool40 (Sharpe 0.90)",
+                linewidth=2.5, color=COLORS["dd_exit"])
+    sma_colors = {
+        (200, 0.0): "#e6550d", (100, 0.0): "#fd8d3c",
+        (50, 0.0): "#fdae6b", (200, 0.02): "#756bb1",
+    }
+    sma_styles = {
+        (200, 0.0): "-", (100, 0.0): "--",
+        (50, 0.0): "-.", (200, 0.02): ":",
+    }
+    for key in [(200, 0.0), (100, 0.0), (50, 0.0), (200, 0.02)]:
+        d, v, m = sma_filter_results[key]
+        ax.semilogy(d, v, label=f"{m['name']} (Sharpe {m['sharpe']:.2f})",
+                    linewidth=1.8, color=sma_colors[key],
+                    linestyle=sma_styles[key])
+    ax.set_title("Pure SMA Filter: SPY SMA Drives UPRO Entry/Exit ($100K, Log Scale)",
+                 fontweight="bold", fontsize=12)
+    ax.set_ylabel("Portfolio Value ($)")
+    ax.legend(loc="upper left", fontsize=9, framealpha=0.9)
+    ax.grid(True, alpha=0.3, which="both")
+    ax.xaxis.set_major_locator(mdates.YearLocator(2))
+    ax.xaxis.set_major_formatter(mdates.DateFormatter("%Y"))
+    ax.tick_params(axis="x", rotation=30)
+    plt.tight_layout()
+    plt.savefig(path, dpi=200, bbox_inches="tight")
+    plt.close()
+    print(f"  Saved: {path}")
+
+
 def chart_bond_cash(bh_dates, bh_vals, tb_dates, tb_vals, bond_results, path):
     """Chart 9: Bond cash alternatives — T-bill vs TLT vs TMF during cooling."""
     fig, ax = plt.subplots(figsize=(10, 6))
@@ -1350,7 +1445,26 @@ def main():
               f"MaxDD={m['max_dd']:.1%}, %Inv={m['pct_invested']:.0%}")
 
     # ------------------------------------------------------------------
-    # 5b. DD25/Cool40 + bond cash alternatives (TLT, TMF)
+    # 5b. Pure SMA filter strategies (SPY SMA drives UPRO entry/exit)
+    # ------------------------------------------------------------------
+    print("  Pure SMA filter strategies...")
+    sma_filter_results = {}
+    sma_filter_variants = [
+        (200, 0.0),    # SMA200 simple crossover
+        (100, 0.0),    # SMA100 simple crossover
+        (50,  0.0),    # SMA50 simple crossover
+        (200, 0.02),   # SMA200 with 2% buffer (80-delta style)
+    ]
+    for sma_len, buf in sma_filter_variants:
+        d, v, m = run_sma_filter(upro_df, spy_df, tbill_daily,
+                                 sma_length=sma_len, exit_buffer=buf)
+        sma_filter_results[(sma_len, buf)] = (d, v, m)
+        all_results.append(m)
+        print(f"    {m['name']}: CAGR={m['cagr']:.1%}, Sharpe={m['sharpe']:.3f}, "
+              f"MaxDD={m['max_dd']:.1%}, %Inv={m['pct_invested']:.0%}, Trades={m['num_trades']}")
+
+    # ------------------------------------------------------------------
+    # 5c. DD25/Cool40 + bond cash alternatives (TLT, TMF)
     # ------------------------------------------------------------------
     print("  DD25/Cool40 + bond cash alternatives...")
     bond_cash_results = {}
@@ -1404,6 +1518,7 @@ def main():
         "walk_forward": os.path.join(_chart_dir, "07_walk_forward.png"),
         "sma_gate": os.path.join(_chart_dir, "08_sma_gate.png"),
         "bond_cash": os.path.join(_chart_dir, "09_bond_cash.png"),
+        "sma_filter": os.path.join(_chart_dir, "13_sma_filter.png"),
     }
     # Keep old chart paths for document builder if files exist on disk
     for key, fname in [("margin_calls", "leverage_margin_calls_summary.png"),
@@ -1426,6 +1541,8 @@ def main():
                    chart_paths["sma_gate"])
     chart_bond_cash(bm_d, bm_v, dd25_40_data[0], dd25_40_data[1],
                     bond_cash_results, chart_paths["bond_cash"])
+    chart_sma_filter(bm_d, bm_v, dd25_40_data[0], dd25_40_data[1],
+                     sma_filter_results, chart_paths["sma_filter"])
 
     # ------------------------------------------------------------------
     # 9. Export CSV with expanded metrics
