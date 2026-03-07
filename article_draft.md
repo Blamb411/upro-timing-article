@@ -50,6 +50,7 @@ I used actual UPRO daily prices from inception (June 25, 2009) through March 202
 - **Cash yield:** Cash earns the prevailing 13-week T-bill rate (^IRX), compounded daily.
 - **Slippage:** Not modeled. UPRO, SPY, and the other ETFs tested are large-cap, high-volume instruments with tight bid-ask spreads. Slippage on market-on-open orders would be minimal.
 - **No intraday stops:** All signals are end-of-day close-based. No intraday monitoring is required.
+- **Sharpe ratios:** Computed with a zero risk-free rate (mean daily return / standard deviation, annualized). Subtracting T-bill rates would reduce all ratios by approximately 0.05 but preserve the relative ordering between strategies.
 
 Here are the five strategies:
 
