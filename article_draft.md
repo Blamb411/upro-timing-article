@@ -2,9 +2,9 @@
 
 ## Summary
 
-- The S&P 500 has compounded at roughly 10% per year (with dividends) since 1950, turning $10,000 into over $4 million. Leveraged ETFs like SSO (2x) and UPRO (3x) amplify those returns -- UPRO has turned $100K into ~$9.6M since 2009 -- but with devastating drawdowns that most investors cannot survive.
+- The S&P 500 has compounded at roughly 10% per year (with dividends) since 1950, turning $10,000 into over $4 million. Leveraged ETFs like SSO (2x) and UPRO (3x) amplify those returns -- UPRO has turned $100K into ~$10.2M since 2009 -- but with devastating drawdowns that most investors cannot survive.
 - I backtested 5 timing strategies across 16+ years of actual UPRO data (2009-2026, $100K starting capital): VIX filter, dual momentum, HFEA (UPRO/TMF), drawdown-triggered exit, and a composite signal. All signals are computed at the prior close and executed at the next market open.
-- The best risk-adjusted strategy -- a simple drawdown exit with a cooling period -- delivered a 0.86 Sharpe ratio (vs 0.78 for UPRO buy-and-hold and 0.85 for plain SPY) and cut the maximum drawdown from -77% to -42%, at the cost of about 12% less terminal wealth. Walk-forward validation, parameter heatmaps, and a synthetic pre-2009 stress test suggest the parameters are not a fragile optimum, but block-bootstrap analysis shows the Sharpe advantage depends materially on the sequencing of returns -- making this a useful practical overlay for recent-style regimes, not a universal improvement.
+- The best risk-adjusted strategy -- a simple drawdown exit with a cooling period -- delivered a 0.86 Sharpe ratio (vs 0.78 for UPRO buy-and-hold and 0.82 for plain SPY) and cut the maximum drawdown from -77% to -42%, at the cost of about 12% less terminal wealth. Walk-forward validation, parameter heatmaps, and a synthetic pre-2009 stress test suggest the parameters are not a fragile optimum, but block-bootstrap analysis shows the Sharpe advantage depends materially on the sequencing of returns -- making this a useful practical overlay for recent-style regimes, not a universal improvement.
 - An enhancement: parking idle cash in TLT (long-term Treasuries) instead of T-bills during cooling periods pushes the Sharpe to 0.89 and terminal wealth to $11.1M -- actually beating UPRO buy-and-hold -- by harvesting flight-to-quality rallies when stocks crash.
 
 ---
@@ -17,7 +17,7 @@ With such a strong track record, a natural question arises: what would happen if
 
 Two exchange-traded funds make this straightforward for retail investors. **SSO** (ProShares Ultra S&P 500) provides 2x daily leveraged exposure to the S&P 500 and has been available since June 2006. **UPRO** (ProShares UltraPro S&P 500) provides 3x daily leverage and launched in June 2009. Both reset their leverage ratio daily -- a critical mechanical detail I'll return to shortly.
 
-The raw numbers are compelling. Since inception, a $100,000 investment in SSO would have grown to approximately $1.5 million (a 14.9% compound annual growth rate). UPRO has been even more dramatic: $100,000 invested at inception has grown to roughly $9.6 million, a 31.5% CAGR over 16+ years. No mainstream ETF comes close to these figures.
+The raw numbers are compelling. Since inception, a $100,000 investment in SSO would have grown to approximately $1.5 million (a 14.9% compound annual growth rate). UPRO has been even more dramatic: $100,000 invested at inception has grown to roughly $10.2 million, a 32.0% CAGR over 16+ years. No mainstream ETF comes close to these figures.
 
 But these headline returns mask serious risks that most investors underestimate.
 
@@ -25,7 +25,7 @@ But these headline returns mask serious risks that most investors underestimate.
 
 ## The Problem With Leveraged ETFs
 
-UPRO's track record is one of the most striking backtests in retail investing. A 31.5% CAGR turns $100K into nearly 100x over 16 years. The temptation to simply buy and hold is powerful.
+UPRO's track record is one of the most striking backtests in retail investing. A 32% CAGR turns $100K into over 100x in 16 years. The temptation to simply buy and hold is powerful.
 
 You already know the catch. That leverage cuts both ways. During the COVID crash, UPRO fell from $38.73 on February 19, 2020 to $8.98 on March 23 -- a **-76.8%** drawdown in just 23 trading days. That remains its worst decline ever. The 2022 rate-hiking bear market inflicted a -63.9% drawdown (from $75.08 to $27.07 over nine months). These are not outliers. They are the recurring cost of 3x leverage.
 
@@ -185,7 +185,7 @@ The Bogleheads community made this one famous. The idea is elegant: pair UPRO wi
 
 End value: $3.3M. CAGR: +23.5%. Sharpe: 0.83. Sortino: 1.08. Max drawdown: -70.5%. The 67 "trades" are quarterly rebalancing events (adjusting the 55/45 allocation every ~63 trading days), not 67 round-trip trades.
 
-HFEA actually has the best Sortino ratio in the entire analysis -- meaning it handles downside volatility particularly well relative to its upside. But the max drawdown is still -70%, which is barely better than pure UPRO.
+HFEA has the best Sortino ratio among the five base strategies (1.08) -- meaning it handles downside volatility particularly well relative to its upside. (The DD25%/Cool40+TLT variant introduced later edges it at 1.13.) But the max drawdown is still -70%, which is barely better than pure UPRO.
 
 The culprit is 2022. When the Fed started hiking aggressively, both stocks and bonds cratered simultaneously. The negative correlation that HFEA depends on simply broke. UPRO fell, and TMF fell alongside it. This is the strategy's Achilles heel, and it's not a theoretical risk -- it happened. **Verdict: interesting diversification, but the correlation assumption is fragile.**
 
