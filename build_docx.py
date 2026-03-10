@@ -31,7 +31,7 @@ os.makedirs(_chart_dir, exist_ok=True)
 # ======================================================================
 INITIAL_CAPITAL = 100_000
 DATA_START = "2008-01-01"
-END_DATE = "2026-03-03"
+END_DATE = "2026-03-08"
 TRADING_DAYS_PER_YEAR = 252
 
 COLORS = {
@@ -43,7 +43,7 @@ COLORS = {
     "composite": "#8c564b",
     "spy": "#555555",
     "syn3x": "#17becf",
-    "syn3x_m": "#bcbd22",
+    "syn3x_m": "#B8860B",
     "static3x": "#e377c2",
     "sma_gate": "#e6550d",
 }
@@ -1052,13 +1052,18 @@ def run_walk_forward(upro_df, vix_series, spy_df, tlt_df, tmf_df, tbill_daily):
 # ======================================================================
 
 def chart_equity_curves(bm_dates, bm_vals, best_strats, path):
-    """Chart 1: Equity curves, log scale."""
+    """Chart 1: Equity curves, log scale. Legend ordered by end value (highest first)."""
     fig, ax = plt.subplots(figsize=(10, 6))
-    ax.semilogy(bm_dates, bm_vals, label="UPRO B&H", linewidth=2.5, color=COLORS["upro_bh"])
     strat_colors = ["vix", "dual", "hfea", "dd_exit", "composite"]
+    # Collect all series with their end values for legend ordering
+    all_series = [("UPRO B&H", bm_dates, bm_vals, bm_vals[-1], COLORS["upro_bh"], 2.5, 1.0)]
     for idx, (label, dates, vals, _) in enumerate(best_strats):
         c = COLORS[strat_colors[idx]] if idx < len(strat_colors) else "#333"
-        ax.semilogy(dates, vals, label=label, linewidth=1.8, color=c, alpha=0.85)
+        all_series.append((label, dates, vals, vals[-1], c, 1.8, 0.85))
+    # Sort by end value descending (highest returns on top of legend)
+    all_series.sort(key=lambda x: x[3], reverse=True)
+    for label, dates, vals, _, color, lw, alpha in all_series:
+        ax.semilogy(dates, vals, label=label, linewidth=lw, color=color, alpha=alpha)
     ax.set_title("Portfolio Value: UPRO B&H vs. Best Timing Strategies ($100K, Log Scale)",
                  fontweight="bold", fontsize=12)
     ax.set_ylabel("Portfolio Value ($)")
@@ -1145,13 +1150,18 @@ def chart_risk_return(bm_metrics, all_results, path):
 
 def chart_leverage_comparison(spy_d, spy_v, s3_d, s3_v, s3m_d, s3m_v,
                               stat_d, stat_v, upro_d, upro_v, path):
-    """Chart 4: Leverage comparison equity curves."""
+    """Chart 4: Leverage comparison equity curves. Legend ordered by end value."""
     fig, ax = plt.subplots(figsize=(10, 6))
-    ax.semilogy(spy_d, spy_v, label="SPY B&H (1x)", linewidth=2, color=COLORS["spy"])
-    ax.semilogy(s3_d, s3_v, label="Synthetic 3x (no cost)", linewidth=2, color=COLORS["syn3x"], linestyle="--")
-    ax.semilogy(s3m_d, s3m_v, label="Synthetic 3x (6% margin)", linewidth=2, color=COLORS["syn3x_m"], linestyle="-.")
-    ax.semilogy(stat_d, stat_v, label="Static 3x (6% margin)", linewidth=2, color=COLORS["static3x"], linestyle=":")
-    ax.semilogy(upro_d, upro_v, label="UPRO B&H", linewidth=2.5, color=COLORS["upro_bh"])
+    all_series = [
+        ("SPY B&H (1x)", spy_d, spy_v, spy_v[-1], COLORS["spy"], 2, "-"),
+        ("Synthetic 3x (no cost)", s3_d, s3_v, s3_v[-1], COLORS["syn3x"], 2, "--"),
+        ("Synthetic 3x (6% margin)", s3m_d, s3m_v, s3m_v[-1], COLORS["syn3x_m"], 2, "-."),
+        ("Static 3x (6% margin)", stat_d, stat_v, stat_v[-1], COLORS["static3x"], 2, ":"),
+        ("UPRO B&H", upro_d, upro_v, upro_v[-1], COLORS["upro_bh"], 2.5, "-"),
+    ]
+    all_series.sort(key=lambda x: x[3], reverse=True)
+    for label, dates, vals, _, color, lw, ls in all_series:
+        ax.semilogy(dates, vals, label=label, linewidth=lw, color=color, linestyle=ls)
     ax.set_title("Leverage Comparison: Four Ways to Get 3x Exposure ($100K, Log Scale)",
                  fontweight="bold", fontsize=12)
     ax.set_ylabel("Portfolio Value ($)")
@@ -1217,14 +1227,21 @@ def chart_dd_heatmap(upro_df, tbill_daily, path):
     print(f"  Saved: {path}")
 
 
-def chart_synthetic_upro(syn_bh_dates, syn_bh_vals, syn_dd_dates, syn_dd_vals, path):
-    """Chart 6: Synthetic UPRO 2000-2009 — B&H vs DD25/Cool40."""
+def chart_synthetic_upro(syn_bh_dates, syn_bh_vals, syn_dd_dates, syn_dd_vals, path,
+                         spy_bh_dates=None, spy_bh_vals=None):
+    """Chart 6: Synthetic UPRO 2000-2009 — B&H vs DD25/Cool40 vs SPY. Legend by end value."""
     fig, ax = plt.subplots(figsize=(10, 6))
-    ax.semilogy(syn_bh_dates, syn_bh_vals, label="Synthetic UPRO B&H",
-                linewidth=2, color=COLORS["upro_bh"])
-    ax.semilogy(syn_dd_dates, syn_dd_vals, label="DD25%/Cool40",
-                linewidth=2, color=COLORS["dd_exit"])
-    ax.set_title("Synthetic UPRO (2000-2009): B&H vs. DD25%/Cool40 ($100K, Log Scale)",
+    all_series = [
+        ("Synthetic UPRO B&H", syn_bh_dates, syn_bh_vals, syn_bh_vals[-1], COLORS["upro_bh"], 2, "-"),
+        ("DD25%/Cool40", syn_dd_dates, syn_dd_vals, syn_dd_vals[-1], COLORS["dd_exit"], 2, "-"),
+    ]
+    if spy_bh_dates is not None and spy_bh_vals is not None:
+        all_series.append(("SPY B&H (1x)", spy_bh_dates, spy_bh_vals, spy_bh_vals[-1],
+                           COLORS["spy"], 2, "--"))
+    all_series.sort(key=lambda x: x[3], reverse=True)
+    for label, dates, vals, _, color, lw, ls in all_series:
+        ax.semilogy(dates, vals, label=label, linewidth=lw, color=color, linestyle=ls)
+    ax.set_title("Synthetic UPRO (2000-2009): B&H vs. DD25%/Cool40 vs. SPY ($100K, Log Scale)",
                  fontweight="bold", fontsize=12)
     ax.set_ylabel("Portfolio Value ($)")
     ax.legend(loc="upper left", fontsize=9)
@@ -1905,7 +1922,13 @@ def main():
     chart_risk_return(bm_m, all_results, chart_paths["risk_return"])
     print("  DD heatmap (expanded grid)...")
     chart_dd_heatmap(upro_df, tbill_daily, chart_paths["dd_heatmap"])
-    chart_synthetic_upro(syn_bh_d, syn_bh_v, syn_dd_d, syn_dd_v, chart_paths["synthetic_upro"])
+    # SPY B&H for 2000-2009 (for chart comparison)
+    spy_2000 = ext_spy.loc["2000-01-01":"2009-06-25"]
+    spy_2000_closes = spy_2000["Close"].values
+    spy_2000_bh_v = (INITIAL_CAPITAL / spy_2000_closes[0]) * spy_2000_closes
+    spy_2000_bh_d = spy_2000.index
+    chart_synthetic_upro(syn_bh_d, syn_bh_v, syn_dd_d, syn_dd_v, chart_paths["synthetic_upro"],
+                         spy_bh_dates=spy_2000_bh_d, spy_bh_vals=spy_2000_bh_v)
     chart_walk_forward(wf_train, wf_test, wf_params, chart_paths["walk_forward"])
     dd25_40_data = dd_results[(0.25, 40)]
     chart_sma_gate(dd25_40_data[0], dd25_40_data[1], sma_gate_results,
