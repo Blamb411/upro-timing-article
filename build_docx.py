@@ -513,6 +513,83 @@ def run_dd_exit_sma_gate(upro_df, spy_df, threshold, cool_days, tbill_daily, sma
         rf_annual=avg_rf_annual(tbill_daily, common))
 
 
+def run_dd_exit_vix_reentry(upro_df, vix_series, threshold, cool_days,
+                            tbill_daily, vix_threshold=25):
+    """DD exit with VIX-gated re-entry. Next-open execution.
+
+    Exit: same as run_dd_exit() — signal on close when UPRO drawdown
+          from close-based ATH breaches threshold, execute at next open.
+    Re-entry: execute at next open when either:
+        (a) UPRO close >= prior ATH  [ATH override]
+        OR
+        (b) cooling period expired AND VIX close < vix_threshold
+    """
+    common = upro_df.index.intersection(vix_series.index)
+    upro_open = upro_df.loc[common, "Open"].values
+    upro_close = upro_df.loc[common, "Close"].values
+    vix = vix_series.reindex(common).values
+    tbill = tbill_daily.reindex(common).fillna(0).values
+
+    shares = INITIAL_CAPITAL / upro_close[0]
+    portfolio = INITIAL_CAPITAL
+    invested = True
+    ath = upro_close[0]
+    cool_counter = 0
+    in_cool = False
+    exit_signal = False
+    enter_signal = False
+    values = [INITIAL_CAPITAL]
+    trades = 1
+    days_invested = 0
+
+    for i in range(1, len(upro_close)):
+        # Execute pending signals at today's open
+        if exit_signal:
+            portfolio = shares * upro_open[i]
+            shares = 0.0
+            invested = False
+            exit_signal = False
+            in_cool = True
+            cool_counter = 0
+        elif enter_signal:
+            shares = portfolio / upro_open[i]
+            invested = True
+            enter_signal = False
+            ath = upro_open[i]
+
+        # Mark to close
+        if invested:
+            val = shares * upro_close[i]
+            values.append(val)
+            days_invested += 1
+
+            ath = max(ath, upro_close[i])
+            dd = upro_close[i] / ath - 1
+            if dd < -threshold:
+                exit_signal = True
+                trades += 1
+        else:
+            portfolio *= (1 + tbill[i])
+            values.append(portfolio)
+
+            if in_cool:
+                cool_counter += 1
+                new_ath = upro_close[i] >= ath
+                cool_expired = cool_counter >= cool_days
+                vix_ok = not np.isnan(vix[i]) and vix[i] < vix_threshold
+
+                if new_ath or (cool_expired and vix_ok):
+                    enter_signal = True
+                    in_cool = False
+                    trades += 1
+
+    pct_inv = days_invested / max(len(values) - 1, 1)
+    name = f"DD{int(threshold * 100)}%/Cool{cool_days}/VIX<{int(vix_threshold)}"
+    return common, np.array(values), compute_metrics(
+        values, name, dates=common, trades=trades, pct_invested=pct_inv,
+        rf_annual=avg_rf_annual(tbill_daily, common))
+
+
 def run_sma_filter(upro_df, spy_df, tbill_daily, sma_length=200, exit_buffer=0.0):
     """Pure SMA-based strategy: SPY SMA drives entry/exit, UPRO is held.
     Entry: buy UPRO when SPY closes above SMA(N).
@@ -1793,6 +1870,31 @@ def main():
         all_results.append(m)
         print(f"    SMA{sma_len} gate: CAGR={m['cagr']:.1%}, Sharpe={m['sharpe']:.3f}, "
               f"MaxDD={m['max_dd']:.1%}, %Inv={m['pct_invested']:.0%}")
+
+    # ------------------------------------------------------------------
+    # 5a2. DD25 + VIX-gated re-entry variants
+    # ------------------------------------------------------------------
+    print("  DD25 + VIX-gated re-entry variants...")
+    vix_reentry_results = {}
+    vix_reentry_specs = [
+        (10, 25), (20, 25), (10, 30), (20, 30),
+    ]
+    for cool_days, vix_thresh in vix_reentry_specs:
+        d, v, m = run_dd_exit_vix_reentry(
+            upro_df, vix_series, 0.25, cool_days, tbill_daily,
+            vix_threshold=vix_thresh)
+        vix_reentry_results[(cool_days, vix_thresh)] = (d, v, m)
+        print(f"    Cool{cool_days}/VIX<{vix_thresh}: CAGR={m['cagr']:.1%}, "
+              f"Sharpe={m['sharpe']:.3f}, MaxDD={m['max_dd']:.1%}, "
+              f"%Inv={m['pct_invested']:.0%}, Trades={m['num_trades']}")
+
+    # Also test the original DD25/Cool40 + VIX<25 combo (cool40 with VIX gate)
+    d, v, m = run_dd_exit_vix_reentry(
+        upro_df, vix_series, 0.25, 40, tbill_daily, vix_threshold=25)
+    vix_reentry_results[(40, 25)] = (d, v, m)
+    print(f"    Cool40/VIX<25: CAGR={m['cagr']:.1%}, Sharpe={m['sharpe']:.3f}, "
+          f"MaxDD={m['max_dd']:.1%}, %Inv={m['pct_invested']:.0%}, "
+          f"Trades={m['num_trades']}")
 
     # ------------------------------------------------------------------
     # 5b. Pure SMA filter strategies (SPY SMA drives UPRO entry/exit)

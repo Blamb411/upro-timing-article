@@ -222,7 +222,7 @@ Why it works: the 25% threshold is wide enough to avoid whipsaws from normal UPR
 
 The 40-day cooling period forces patience. You don't buy the first dead-cat bounce. You wait for the storm to pass. This works partly because volatility clusters: after a large drawdown, the probability of continued violent price action remains elevated for weeks. The cooling period is a crude but effective way of staying out until that turbulence subsides.
 
-The trade-off is explicit: you give up about $1.1 million in terminal wealth (12% of buy-and-hold's end value) in exchange for a maximum drawdown that's **35 percentage points better** (-41.8% vs -76.8%). The Sharpe ratio improved from 0.77 to 0.85 over this test period. 31 trade signals (~15 round trips) over 16+ years. You're invested 86% of the time.
+The trade-off is explicit: you give up about $1.1 million in terminal wealth (12% of buy-and-hold's end value) in exchange for a maximum drawdown that's **35 percentage points better** (-41.8% vs -76.8%). The Sharpe ratio improved from 0.77 to 0.85 over this test period. 31 trade signals (~15 round trips) over 16+ years. You're invested 86% of the time. (As we'll see shortly, a different cash vehicle during cooling periods can erase most of this wealth gap.)
 
 ### Composite Signal
 
